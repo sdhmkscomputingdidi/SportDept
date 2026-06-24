@@ -1,0 +1,56 @@
+You are an expert full-stack developer specializing in Vite, React with TypeScript, Tailwind CSS, and Supabase. 
+
+I need you to scaffold a complete Sports Club CMS application inside this project folder based on the exact specifications and existing database schema below. 
+
+### CONTEXT & STACK
+- Frontend: Vite + React + TypeScript + Tailwind CSS
+- Routing: react-router-dom (v6)
+- Database/Backend: Supabase (already configured)
+- Purpose: A system to manage 5 sports clubs, coaches, players, and highly dynamic monthly player assessments.
+
+### EXISTING DATABASE SCHEMA (Reference for your API calls)
+1. public.profiles (id UUID, full_name TEXT, role enum['head_coach', 'coach'])
+2. public.sports (id UUID, name TEXT, sport_code auto-increment)
+3. public.coaches_sports (coach_id UUID, sport_id UUID)
+4. public.players (id UUID, full_name TEXT, date_of_birth DATE)
+5. public.players_sports (player_id UUID, sport_id UUID)
+6. public.assessment_categories (id UUID, sport_id UUID, name TEXT)
+7. public.skills (id UUID, category_id UUID, name TEXT)
+8. public.skill_criteria (id UUID, skill_id UUID, description TEXT)
+9. public.player_assessments (id UUID, player_id UUID, criteria_id UUID, coach_id UUID, score INT (1-5), assessment_month INT, assessment_year INT, notes TEXT)
+
+### APPLICATION STRUCTURE TO GENERATE
+Please generate the code, configurations, and component files for this structure:
+
+1. src/lib/supabaseClient.ts
+   - Initialize the Supabase client using `import.meta.env.VITE_SUPABASE_URL` and `import.meta.env.VITE_SUPABASE_ANON_KEY`.
+
+2. src/App.tsx & Routing Setup
+   - Set up `react-router-dom`.
+   - Implement role-based route guarding. When a user logs in, fetch their role from `public.profiles`.
+   - If role is 'head_coach', route them to the `/admin` workspace.
+   - If role is 'coach', route them to the `/coach` workspace.
+
+3. WORKSPACE A: Head Coach (/admin)
+   - Layout: Sidebar navigation containing links to Sports, Coaches, and Students.
+   - View 1 (ManageSports.tsx): Full CRUD table to view, add, edit, and delete the 5 sports clubs.
+   - View 2 (ManageCoaches.tsx): View coaches, register new coach accounts, and a multi-select interface to assign/bind coaches to specific sports clubs.
+   - View 3 (ManagePlayers.tsx): Register players and assign them to their respective sports clubs.
+
+4. WORKSPACE B: Coach (/coach)
+   - Layout: Sidebar navigation with layout showing their assigned sports options.
+   - View 1 (ManageCriteria.tsx): Dynamic template builder. Select a sport -> CRUD Assessment Categories -> CRUD specific Skills under categories -> CRUD detailed Skill Criteria (what is observed).
+   - View 2 (GradeStudents.tsx): The Assessment Matrix. 
+     * Dropdowns to select: Assigned Sport, Player, Year, and Month.
+     * Fetch the nested criteria template for that sport.
+     * Render a neat layout matching Categories > Skills > Criteria.
+     * Next to each criteria item, show a 1-to-5 radio button scale selector.
+     * A single "Save Monthly Report" button at the bottom that executes a single `.upsert()` batch request to `public.player_assessments`.
+
+### DESIGN SPECIFICATIONS
+- Clean, modern dashboard layouts using Tailwind CSS.
+- Responsive sidebars.
+- Use native HTML5 inputs with nice Tailwind styling for forms.
+- Ensure proper TypeScript types/interfaces are declared for the custom database return types (e.g., nested joins for the evaluation templates).
+
+Please output the files completely, avoiding placeholders like "// TODO: implement later". Start generating the codebase now.
