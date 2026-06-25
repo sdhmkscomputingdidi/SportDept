@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 
 export const CoachLayout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [userName, setUserName] = useState<string>('Coach');
   const [assignedSports, setAssignedSports] = useState<any[]>([]);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
@@ -179,18 +180,19 @@ export const CoachLayout: React.FC = () => {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-panel border-t border-slate-800/80 flex justify-around items-center py-2 px-1 safe-area-pb">
-        <NavLink
-          to="/coach/grade"
-          end
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
-              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
-            }`
-          }
+        <button
+          onClick={() => {
+            if (assignedSports.length > 0) {
+              navigate(`/coach/grade/${assignedSports[0].id}`);
+            }
+          }}
+          className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+            location.pathname.startsWith('/coach/grade') ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
           <span className="text-lg">📊</span>
           <span className="text-[10px] font-medium">Grade</span>
-        </NavLink>
+        </button>
         <NavLink
           to="/coach/players"
           className={({ isActive }) =>
