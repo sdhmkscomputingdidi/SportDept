@@ -76,7 +76,7 @@ export const GradeStudents: React.FC = () => {
   const handleScoreChange = async (skillId: string, newScore: number) => {
     setAssessmentData(prev => prev.map(cat => ({
       ...cat,
-      skills: cat.skills.map(s => s.id === skillId ? { ...s, score: newScore } : s)
+      skills: cat.skills.map((s: any) => s.id === skillId ? { ...s, score: newScore } : s)
     })));
 
     const { error } = await supabase.from('player_assessments').upsert({
@@ -152,9 +152,9 @@ export const GradeStudents: React.FC = () => {
                     <h3 className="font-semibold text-white mb-1">{skill.name}</h3>
                     <p className="text-xs text-slate-500 italic mb-3">Observe: {skill.descriptions.join(', ')}</p>
                     <div className="flex items-center gap-4">
-                      <input type="range" min="1" max="10" value={skill.score}
-                        onChange={(e) => handleScoreChange(skill.id, parseInt(e.target.value))}
-                        className="accent-violet-500 w-full cursor-pointer" />
+<input type="range" min="1" max="10" value={skill.score}
+                          onChange={(e) => handleScoreChange(skill.id, parseInt(e.target.value))}
+                          className="accent-violet-500 w-full cursor-pointer" />
                       <span className="w-8 text-center font-bold">{skill.score}</span>
                     </div>
                   </div>

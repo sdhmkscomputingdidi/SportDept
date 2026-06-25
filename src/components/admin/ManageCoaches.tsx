@@ -20,14 +20,6 @@ interface Sport {
   name: string;
 }
 
-interface CoachSportLink {
-  coach_id: string;
-  sport_id: string;
-  sports: {
-    name: string;
-  };
-}
-
 const ManageCoaches: React.FC = () => {
   const [coaches, setCoaches] = useState<CoachProfile[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
