@@ -354,7 +354,7 @@ export const ManageCriteria: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* COLUMN 1: CATEGORIES */}
-           <div className="glass-panel border border-slate-800/60 rounded-xl p-5 flex flex-col">
+           <div className="glass-panel border border-slate-800/60 rounded-xl p-5 flex flex-col md:h-[550px]">
             <h3 className="text-sm font-extrabold text-white uppercase tracking-wider mb-3 pb-2 border-b border-slate-800/80">
               1. Categories
             </h3>
@@ -445,7 +445,7 @@ export const ManageCriteria: React.FC = () => {
           </div>
 
           {/* COLUMN 2: SKILLS */}
-           <div className="glass-panel border border-slate-800/60 rounded-xl p-5 flex flex-col">
+           <div className="glass-panel border border-slate-800/60 rounded-xl p-5 flex flex-col md:h-[550px]">
             <h3 className="text-sm font-extrabold text-white uppercase tracking-wider mb-3 pb-2 border-b border-slate-800/80">
               2. Skills
             </h3>
@@ -544,7 +544,7 @@ export const ManageCriteria: React.FC = () => {
           </div>
 
           {/* COLUMN 3: SKILL CRITERIA */}
-           <div className="glass-panel border border-slate-800/60 rounded-xl p-5 flex flex-col">
+           <div className="glass-panel border border-slate-800/60 rounded-xl p-5 flex flex-col md:h-[550px]">
             <h3 className="text-sm font-extrabold text-white uppercase tracking-wider mb-3 pb-2 border-b border-slate-800/80">
               3. Rubric Criteria
             </h3>

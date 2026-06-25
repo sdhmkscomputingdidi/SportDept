@@ -26,6 +26,10 @@ interface EventParticipant {
 
 export const ManageEvents: React.FC = () => {
   const { sportId: urlSportId } = useParams<{ sportId?: string }>();
+  
+  // Mobile view state: 'events' or 'players'
+  const [mobileView, setMobileView] = useState<'events' | 'players'>('events');
+  
   const [selectedSportId, setSelectedSportId] = useState<string>('');
   const [sports, setSports] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -294,9 +298,30 @@ export const ManageEvents: React.FC = () => {
   const availablePlayers = players.filter((p) => !participantPlayerIds.has(p.id));
 
   return (
-    <div className="flex h-screen p-6 gap-6 bg-slate-950 text-white">
+    <div className="flex flex-col md:flex-row md:h-screen bg-slate-950 text-white">
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex border-b border-slate-800 bg-slate-900 safe-area-pt">
+        <button
+          onClick={() => setMobileView('events')}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'events' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          }`}
+        >
+          Events ({events.length})
+        </button>
+        <button
+          onClick={() => setMobileView('players')}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'players' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          }`}
+        >
+          Participants
+        </button>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:h-screen md:p-6 md:gap-6 flex-1">
       {/* Left Sidebar - Events */}
-      <div className="w-64 bg-slate-900 p-4 rounded-xl overflow-y-auto flex flex-col">
+      <div className={`w-full md:w-64 bg-slate-900 p-4 md:p-4 md:rounded-xl md:overflow-y-auto md:flex md:flex-col ${mobileView === 'players' ? 'hidden md:block' : ''}`}>
         <h3 className="font-bold mb-4 uppercase text-xs text-slate-400">Events — {sports.find(s => s.id === selectedSportId)?.name || ''}</h3>
 
         <form onSubmit={handleAddEvent} className="mb-4 space-y-2">
@@ -383,7 +408,7 @@ export const ManageEvents: React.FC = () => {
       </div>
 
       {/* Right Main - Participants */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-900 p-6 rounded-xl border border-slate-800">
+      <div className={`w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800 ${mobileView === 'events' ? 'hidden md:block' : ''}`}>
         {selectedEvent ? (
           <>
             <div className="flex items-center justify-between mb-6">
@@ -473,10 +498,12 @@ export const ManageEvents: React.FC = () => {
         )}
       </div>
 
+      </div>
+
       {/* Edit Modal */}
       {editEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleUpdateEvent} className="bg-slate-900 p-6 rounded-xl border border-slate-700 w-96">
+          <form onSubmit={handleUpdateEvent} className="bg-slate-900 p-6 rounded-xl border border-slate-700 w-full max-w-sm mx-4 md:w-96">
             <h3 className="text-lg font-bold mb-4 text-white">Edit Event</h3>
             <input
               className="w-full bg-slate-800 p-2 mb-4 rounded text-white text-sm"

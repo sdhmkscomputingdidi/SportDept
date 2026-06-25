@@ -177,8 +177,68 @@ export const CoachLayout: React.FC = () => {
         </div>
       </aside>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-panel border-t border-slate-800/80 flex justify-around items-center py-2 px-1 safe-area-pb">
+        <NavLink
+          to="/coach/grade"
+          end
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">📊</span>
+          <span className="text-[10px] font-medium">Grade</span>
+        </NavLink>
+        <NavLink
+          to="/coach/players"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">🏃</span>
+          <span className="text-[10px] font-medium">Students</span>
+        </NavLink>
+        <NavLink
+          to="/coach/events"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">📅</span>
+          <span className="text-[10px] font-medium">Events</span>
+        </NavLink>
+        <NavLink
+          to="/coach/criteria"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">📋</span>
+          <span className="text-[10px] font-medium">Criteria</span>
+        </NavLink>
+        <NavLink
+          to="/coach/add-student"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">➕</span>
+          <span className="text-[10px] font-medium">Add</span>
+        </NavLink>
+      </nav>
+
       {/* Main Content */}
-      <main className="flex-1 pt-14 md:pt-8 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 pt-14 md:pt-8 p-4 md:p-8 overflow-y-auto pb-20 md:pb-8">
         <Outlet />
       </main>
     </div>

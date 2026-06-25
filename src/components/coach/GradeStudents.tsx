@@ -4,6 +4,10 @@ import { supabase } from '../../lib/supabaseClient';
 
 export const GradeStudents: React.FC = () => {
   const { sportId } = useParams<{ sportId: string }>();
+  
+  // Mobile view state: 'students' or 'grading'
+  const [mobileView, setMobileView] = useState<'students' | 'grading'>('students');
+  
   const [students, setStudents] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [assessmentData, setAssessmentData] = useState<any[]>([]);
@@ -100,69 +104,96 @@ export const GradeStudents: React.FC = () => {
   }, [assessmentData]);
 
   return (
-    <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden md:p-6 md:gap-6 bg-slate-950 text-white">
-      {/* Sidebar with Scrollable Container */}
-      <div className="w-full md:w-64 md:flex-shrink-0">
-        <h3 className="text-slate-400 font-bold mb-4 uppercase text-xs">Students</h3>
-        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-150px)] pr-2">
-          {students.map(s => (
-            <button key={s.id} onClick={() => setSelectedStudent(s)} 
-              className={`w-full text-left p-3 rounded-lg ${selectedStudent?.id === s.id ? 'bg-violet-600' : 'bg-slate-900'}`}>
-              {s.full_name}
-            </button>
-          ))}
-        </div>
+    <div className="flex flex-col h-screen bg-slate-950 text-white">
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex border-b border-slate-800 bg-slate-900 safe-area-pt">
+        <button
+          onClick={() => setMobileView('students')}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'students' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          }`}
+        >
+          Students ({students.length})
+        </button>
+        <button
+          onClick={() => selectedStudent && setMobileView('grading')}
+          disabled={!selectedStudent}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'grading' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          } ${!selectedStudent ? 'opacity-50' : ''}`}
+        >
+          Grading
+        </button>
       </div>
 
-      <div className="w-full md:flex-1 md:h-full md:overflow-y-auto">
-        {selectedStudent ? (
-          <>
-            <div className="mb-6 bg-slate-900 p-4 rounded-lg flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-lg">{selectedStudent.full_name}</h2>
-                <p className="text-xs text-slate-400">{sportName}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <select 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="bg-slate-800 p-2 rounded border border-slate-700 outline-none text-sm text-white"
-                >
-                  {seasonMonths.map((m) => <option key={m} value={m}>{getMonthLabel(m)}</option>)}
-                </select>
-                <select 
-                  value={selectedYear} 
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="bg-slate-800 p-2 rounded border border-slate-700 outline-none text-sm text-white"
-                >
-                  <option value={selectedYear - 1}>{selectedYear - 1}–{selectedYear}</option>
-                  <option value={selectedYear}>{selectedYear}–{selectedYear + 1}</option>
-                  <option value={selectedYear + 1}>{selectedYear + 1}–{selectedYear + 2}</option>
-                </select>
-              </div>
-            </div>
-            {loading ? <p>Loading...</p> : assessmentData.map((cat, idx) => (
-              <div key={cat.id} className="bg-slate-900 border border-slate-800 p-6 rounded-xl mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-violet-400">{cat.name}</h2>
-                  <span className="text-sm bg-slate-800 px-3 py-1 rounded">Avg: {categoryAverages[idx]}</span>
-                </div>
-                {cat.skills.map((skill: any) => (
-                  <div key={skill.id} className="mb-6 p-4 bg-slate-950 rounded-lg">
-                    <h3 className="font-semibold text-white mb-1">{skill.name}</h3>
-                    <p className="text-xs text-slate-500 italic mb-3">Observe: {skill.descriptions.join(', ')}</p>
-                    <div className="flex items-center gap-4">
-<input type="range" min="1" max="10" value={skill.score}
-                          onChange={(e) => handleScoreChange(skill.id, parseInt(e.target.value))}
-                          className="accent-violet-500 w-full cursor-pointer" />
-                      <span className="w-8 text-center font-bold">{skill.score}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden md:p-6 md:gap-6 flex-1 overflow-hidden">
+        {/* Students Sidebar/List - hidden on mobile when in grading view */}
+        <div className={`w-full md:w-64 md:flex-shrink-0 ${mobileView === 'grading' ? 'hidden md:block' : ''}`}>
+          <h3 className="text-slate-400 font-bold mb-4 uppercase text-xs md:block hidden">Students</h3>
+          <div className="space-y-2 overflow-y-auto max-h-full md:max-h-[calc(100vh-150px)] pr-2">
+            {students.map(s => (
+              <button key={s.id} onClick={() => { setSelectedStudent(s); setMobileView('grading'); }} 
+                className={`w-full text-left p-3 rounded-lg transition-all min-h-[44px] ${selectedStudent?.id === s.id ? 'bg-violet-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                {s.full_name}
+              </button>
             ))}
-          </>
-        ) : <p className="text-center mt-20 text-slate-500">Select a student</p>}
+          </div>
+        </div>
+
+        <div className={`w-full md:flex-1 md:h-full md:overflow-y-auto ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
+          {selectedStudent ? (
+            <>
+              <div className="mb-4 md:mb-6 bg-slate-900 p-3 md:p-4 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex-1">
+                  <h2 className="font-bold text-base md:text-lg">{selectedStudent.full_name}</h2>
+                  <p className="text-xs text-slate-400">{sportName}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={selectedMonth} 
+                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    className="bg-slate-800 p-2 rounded border border-slate-700 outline-none text-sm text-white min-h-[40px]"
+                  >
+                    {seasonMonths.map((m) => <option key={m} value={m}>{getMonthLabel(m)}</option>)}
+                  </select>
+                  <select 
+                    value={selectedYear} 
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="bg-slate-800 p-2 rounded border border-slate-700 outline-none text-sm text-white min-h-[40px]"
+                  >
+                    <option value={selectedYear - 1}>{selectedYear - 1}–{selectedYear}</option>
+                    <option value={selectedYear}>{selectedYear}–{selectedYear + 1}</option>
+                    <option value={selectedYear + 1}>{selectedYear + 1}–{selectedYear + 2}</option>
+                  </select>
+                </div>
+              </div>
+              {loading ? <p className="p-4 text-center">Loading...</p> : assessmentData.map((cat, idx) => (
+                <div key={cat.id} className="bg-slate-900 border border-slate-800 p-4 md:p-6 rounded-xl mb-4 md:mb-6">
+                  <div className="flex justify-between items-center mb-3 md:mb-4">
+                    <h2 className="text-lg md:text-xl font-bold text-violet-400">{cat.name}</h2>
+                    <span className="text-xs md:text-sm bg-slate-800 px-2 md:px-3 py-1 rounded">Avg: {categoryAverages[idx]}</span>
+                  </div>
+                  {cat.skills.map((skill: any) => (
+                    <div key={skill.id} className="mb-4 md:mb-6 p-3 md:p-4 bg-slate-950 rounded-lg">
+                      <h3 className="font-semibold text-white mb-1 text-sm md:text-base">{skill.name}</h3>
+                      <p className="text-xs text-slate-500 italic mb-2 md:mb-3">Observe: {skill.descriptions.join(', ')}</p>
+                      <div className="flex items-center gap-3">
+                        <input type="range" min="1" max="10" value={skill.score}
+                          onChange={(e) => handleScoreChange(skill.id, parseInt(e.target.value))}
+                          className="accent-violet-500 w-full cursor-pointer h-5" />
+                        <span className="w-8 text-center font-bold text-sm">{skill.score}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-slate-500 p-4 text-center">
+              {mobileView === 'grading' ? 'Select a student to begin grading' : null}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -456,7 +456,7 @@ const ManageCoaches: React.FC = () => {
       {/* Assignment Modal Popup */}
       {selectedCoach && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-4 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <div>
               <h3 className="text-lg font-bold text-white">Manage Coach</h3>
               <p className="text-xs text-slate-400">Edit details or manage club assignments for <b>{selectedCoach.full_name}</b>.</p>
@@ -564,7 +564,7 @@ const ManageCoaches: React.FC = () => {
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl w-full max-w-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl w-full max-w-sm mx-4">
             <h3 className="text-lg font-bold text-white mb-2">Delete Coach</h3>
             <p className="text-sm text-slate-400 mb-6">
               Are you sure you want to permanently delete <span className="text-white font-semibold">{deleteTarget.full_name}</span>? This action cannot be undone and will remove all club assignments.

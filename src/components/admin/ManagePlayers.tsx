@@ -10,6 +10,8 @@ const COLORS = ['#8b5cf6', '#f472b6', '#34d399', '#fbbf24', '#3b82f6', '#ef4444'
 
 export const ManagePlayers: React.FC = () => {
   const { sportId } = useParams<{ sportId: string }>();
+  // Mobile view state
+  const [mobileView, setMobileView] = useState<'students' | 'stats'>('students');
   const [players, setPlayers] = useState<any[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [selectedMonths, setSelectedMonths] = useState<number[]>([7]);
@@ -244,23 +246,45 @@ export const ManagePlayers: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen p-6 gap-6 bg-slate-950 text-white">
+    <div className="flex flex-col md:flex-row md:h-screen bg-slate-950 text-white">
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex border-b border-slate-800 bg-slate-900 safe-area-pt">
+        <button
+          onClick={() => setMobileView('students')}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'students' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          }`}
+        >
+          Students ({players.length})
+        </button>
+        <button
+          onClick={() => selectedPlayer && setMobileView('stats')}
+          disabled={!selectedPlayer}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'stats' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          } ${!selectedPlayer ? 'opacity-50' : ''}`}
+        >
+          Stats
+        </button>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:h-screen md:p-6 md:gap-6 flex-1">
       {/* Sidebar */}
-      <div className="w-64 bg-slate-900 p-4 rounded-xl overflow-y-auto">
+      <div className={`w-full md:w-64 bg-slate-900 p-4 md:p-4 md:rounded-xl overflow-y-auto ${mobileView === 'stats' ? 'hidden md:block' : ''}`}>
         <h3 className="font-bold mb-4 uppercase text-xs text-slate-400">Players</h3>
         {players.map(p => (
           <div key={p.id} className="flex items-center gap-2 mb-2">
-            <button onClick={() => setSelectedPlayer(p)} 
-              className={`flex-1 text-left p-3 rounded transition-colors ${selectedPlayer?.id === p.id ? 'bg-violet-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
+            <button onClick={() => { setSelectedPlayer(p); setMobileView('stats'); }} 
+              className={`flex-1 text-left p-3 rounded transition-colors min-h-[44px] ${selectedPlayer?.id === p.id ? 'bg-violet-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
               {p.full_name}
             </button>
-            <button onClick={() => setEditPlayer(p)} className="text-xs bg-slate-700 px-2 py-3 rounded hover:bg-slate-600">Edit</button>
+            <button onClick={() => setEditPlayer(p)} className="text-xs bg-slate-700 px-2 py-3 rounded hover:bg-slate-600 min-h-[44px]">Edit</button>
           </div>
         ))}
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-900 p-6 rounded-xl border border-slate-800">
+      <div className={`w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800 ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
         {selectedPlayer ? (
           <>
             <h2 className="text-2xl font-bold mb-2">{selectedPlayer.full_name} Statistics</h2>
@@ -297,7 +321,7 @@ export const ManagePlayers: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex-1 w-full h-[400px]">
+            <div className="flex-1 w-full h-[250px] md:h-[400px]">
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'radar' ? (
                   <RadarChart data={radarData}>
@@ -365,10 +389,12 @@ export const ManagePlayers: React.FC = () => {
         )}
       </div>
 
+      </div>
+
       {/* Edit Modal */}
       {editPlayer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleUpdatePlayer} className="bg-slate-900 p-6 rounded-xl border border-slate-700 w-96">
+          <form onSubmit={handleUpdatePlayer} className="bg-slate-900 p-6 rounded-xl border border-slate-700 w-full max-w-sm mx-4 md:w-96">
             <h3 className="text-lg font-bold mb-4">Edit Student</h3>
             <input className="w-full bg-slate-800 p-2 mb-4 rounded" value={editPlayer.full_name} onChange={e => setEditPlayer({...editPlayer, full_name: e.target.value})} />
             <select className="w-full bg-slate-800 p-2 mb-4 rounded" value={editPlayer.sport_id} onChange={e => setEditPlayer({...editPlayer, sport_id: e.target.value})}>

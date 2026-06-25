@@ -41,6 +41,7 @@ interface PlayerEvent {
 
 export const ManagePlayers: React.FC = () => {
   const { sportId: urlSportId } = useParams<{ sportId?: string }>();
+  const [mobileView, setMobileView] = useState<'add' | 'list'>('list');
   const [sports, setSports] = useState<Sport[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -296,8 +297,29 @@ export const ManagePlayers: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row md:h-screen md:p-6 md:gap-6 bg-slate-950 text-white">
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex border-b border-slate-800 bg-slate-900 safe-area-pt">
+        <button
+          onClick={() => setMobileView('add')}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'add' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          }`}
+        >
+          Add Student
+        </button>
+        <button
+          onClick={() => setMobileView('list')}
+          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+            mobileView === 'list' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-slate-400'
+          }`}
+        >
+          {selectedPlayer ? 'Stats' : 'Students List'}
+        </button>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:gap-6 flex-1">
       {/* Left Column - Add Student Form */}
-      <div className="w-full md:w-96 bg-slate-900 p-4 md:p-6 rounded-xl md:overflow-y-auto md:flex md:flex-col">
+      <div className={`w-full md:w-96 bg-slate-900 p-4 md:p-6 rounded-xl md:overflow-y-auto md:flex md:flex-col ${mobileView === 'list' ? 'hidden md:block' : ''}`}>
         <h3 className="font-bold mb-4 uppercase text-xs text-slate-400">
           {urlSportId ? `Add Student to ${sports.find(s => s.id === urlSportId)?.name || ''}` : 'Add New Student'}
         </h3>
@@ -346,7 +368,7 @@ export const ManagePlayers: React.FC = () => {
       </div>
 
       {/* Right Column - List or Stats */}
-      <div className="w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800">
+      <div className={`w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800 ${mobileView === 'add' ? 'hidden md:block' : ''}`}>
         {selectedPlayer ? (
           /* STATS VIEW */
           <div className="flex-1 overflow-y-auto">
@@ -524,6 +546,7 @@ export const ManagePlayers: React.FC = () => {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 };
