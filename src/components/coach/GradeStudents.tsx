@@ -140,7 +140,7 @@ export const GradeStudents: React.FC = () => {
           </div>
         </div>
 
-        <div className={`w-full md:flex-1 md:h-full md:overflow-y-auto ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
+        <div className={`w-full flex-1 overflow-y-auto pb-20 md:pb-0 ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
           {selectedStudent ? (
             <>
               <div className="mb-4 md:mb-6 bg-slate-900 p-3 md:p-4 rounded-lg">
