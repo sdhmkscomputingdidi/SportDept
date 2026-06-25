@@ -365,6 +365,7 @@ export const ManageEvents: React.FC = () => {
                 onClick={() => {
                   setSelectedEvent(evt);
                   setEditEvent(null);
+                  setMobileView('players');
                 }}
                 className={`p-3 rounded cursor-pointer transition-colors ${
                   selectedEvent?.id === evt.id
@@ -411,16 +412,31 @@ export const ManageEvents: React.FC = () => {
       <div className={`w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800 ${mobileView === 'events' ? 'hidden md:block' : ''}`}>
         {selectedEvent ? (
           <>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{selectedEvent.name}</h2>
-                <p className="text-sm text-slate-400">
-                  {new Date(selectedEvent.event_date).toLocaleDateString()} — {participants.length} participant{participants.length !== 1 ? 's' : ''}
-                </p>
-                {selectedEvent.notes && (
-                  <p className="text-sm text-slate-300 mt-2 bg-slate-800 p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">{selectedEvent.notes}</p>
-                )}
+            <div className="mb-6">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Select Event</label>
+              <select
+                value={selectedEvent.id}
+                onChange={(e) => {
+                  const event = events.find(ev => ev.id === e.target.value);
+                  if (event) {
+                    setSelectedEvent(event);
+                    setEditEvent(null);
+                  }
+                }}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+              >
+                {events.map(evt => (
+                  <option key={evt.id} value={evt.id}>
+                    {evt.name} — {evt.event_date}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-3 flex items-center gap-3 text-sm text-slate-400">
+                <span>{participants.length} participant{participants.length !== 1 ? 's' : ''}</span>
               </div>
+              {selectedEvent.notes && (
+                <p className="text-sm text-slate-300 mt-3 bg-slate-800/50 p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">{selectedEvent.notes}</p>
+              )}
             </div>
 
             {error && (

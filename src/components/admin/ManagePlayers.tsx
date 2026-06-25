@@ -287,7 +287,23 @@ export const ManagePlayers: React.FC = () => {
       <div className={`w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800 ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
         {selectedPlayer ? (
           <>
-            <h2 className="text-2xl font-bold mb-2">{selectedPlayer.full_name} Statistics</h2>
+            <div className="mb-4">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Select Student</label>
+              <select
+                value={selectedPlayer.id}
+                onChange={(e) => {
+                  const player = players.find(p => p.id === e.target.value);
+                  if (player) setSelectedPlayer(player);
+                }}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+              >
+                {players.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex flex-wrap gap-2 mb-6 bg-slate-950 p-4 rounded-lg">
               <div className="flex items-center gap-2 mr-4">
                 <span className="text-xs text-slate-400">View:</span>

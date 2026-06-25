@@ -372,19 +372,32 @@ export const ManagePlayers: React.FC = () => {
         {selectedPlayer ? (
           /* STATS VIEW */
           <div className="flex-1 overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{selectedPlayer.full_name}</h2>
-                <p className="text-xs text-slate-400">
-                  {selectedPlayer.sport_id ? getSportName(selectedPlayer.sport_id) : 'Unassigned'}
-                </p>
+            <div className="mb-6">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Select Student</label>
+                  <select
+                    value={selectedPlayer.id}
+                    onChange={(e) => {
+                      const player = players.find(p => p.id === e.target.value);
+                      if (player) setSelectedPlayer(player);
+                    }}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                  >
+                    {players.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name}{p.sport_id ? ` — ${getSportName(p.sport_id) || ''}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={() => setSelectedPlayer(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors self-end mb-0.5 whitespace-nowrap"
+                >
+                  ← Back
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedPlayer(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors"
-              >
-                ← Back to List
-              </button>
             </div>
 
             {error && (

@@ -143,12 +143,21 @@ export const GradeStudents: React.FC = () => {
         <div className={`w-full md:flex-1 md:h-full md:overflow-y-auto ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
           {selectedStudent ? (
             <>
-              <div className="mb-4 md:mb-6 bg-slate-900 p-3 md:p-4 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="flex-1">
-                  <h2 className="font-bold text-base md:text-lg">{selectedStudent.full_name}</h2>
-                  <p className="text-xs text-slate-400">{sportName}</p>
-                </div>
-                <div className="flex items-center gap-2">
+              <div className="mb-4 md:mb-6 bg-slate-900 p-3 md:p-4 rounded-lg">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Select Student</label>
+                <select
+                  value={selectedStudent.id}
+                  onChange={(e) => {
+                    const student = students.find(s => s.id === e.target.value);
+                    if (student) setSelectedStudent(student);
+                  }}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                >
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>{s.full_name}</option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-2 mt-3">
                   <select 
                     value={selectedMonth} 
                     onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
@@ -165,6 +174,7 @@ export const GradeStudents: React.FC = () => {
                     <option value={selectedYear}>{selectedYear}–{selectedYear + 1}</option>
                     <option value={selectedYear + 1}>{selectedYear + 1}–{selectedYear + 2}</option>
                   </select>
+                  <span className="text-xs text-slate-400 ml-auto">{sportName}</span>
                 </div>
               </div>
               {loading ? <p className="p-4 text-center">Loading...</p> : assessmentData.map((cat, idx) => (
