@@ -42,3 +42,144 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+/* ============================================
+   THEME SYSTEM
+   ============================================ */
+
+/* DEFAULT (violet dark) — no overrides needed, uses existing base */
+
+/* LIGHT THEME */
+[data-theme="light"] body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .bg-slate-950,
+[data-theme="light"] .bg-slate-900,
+[data-theme="light"] .bg-slate-800,
+[data-theme="light"] .bg-slate-800\/50,
+[data-theme="light"] .bg-slate-900\/30,
+[data-theme="light"] .bg-slate-900\/40,
+[data-theme="light"] .bg-slate-900\/50,
+[data-theme="light"] .bg-slate-950\/50,
+[data-theme="light"] .bg-slate-950\/60,
+[data-theme="light"] .bg-slate-900\/60 {
+  background-color: #f8fafc !important;
+}
+[data-theme="light"] .bg-white {
+  background-color: #ffffff !important;
+}
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-slate-100,
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300,
+[data-theme="light"] .text-slate-400 {
+  color: #0f172a !important;
+}
+[data-theme="light"] .text-slate-500,
+[data-theme="light"] .text-slate-600 {
+  color: #475569 !important;
+}
+[data-theme="light"] .border-slate-800,
+[data-theme="light"] .border-slate-700,
+[data-theme="light"] .border-slate-900,
+[data-theme="light"] .border-slate-800\/80,
+[data-theme="light"] .border-slate-800\/60,
+[data-theme="light"] .border-slate-800\/50 {
+  border-color: rgba(0,0,0,0.1) !important;
+}
+[data-theme="light"] .bg-red-500\/10,
+[data-theme="light"] .bg-violet-500\/10,
+[data-theme="light"] .bg-blue-600 {
+  background-color: rgba(0,0,0,0.04) !important;
+}
+[data-theme="light"] .text-red-400,
+[data-theme="light"] .text-violet-400,
+[data-theme="light"] .text-violet-300,
+[data-theme="light"] .text-blue-400 {
+  color: #6366f1 !important;
+}
+[data-theme="light"] .bg-violet-600,
+[data-theme="light"] .bg-violet-500,
+[data-theme="light"] .bg-blue-600,
+[data-theme="light"] .bg-blue-500 {
+  background-color: #6366f1 !important;
+}
+[data-theme="light"] .bg-violet-600\/15,
+[data-theme="light"] .bg-violet-600\/25,
+[data-theme="light"] .bg-violet-600\/35 {
+  background-color: rgba(99,102,241,0.15) !important;
+}
+[data-theme="light"] .hover\:bg-violet-500:hover,
+[data-theme="light"] .hover\:bg-blue-500:hover {
+  background-color: #4f46e5 !important;
+}
+[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(8px);
+}
+[data-theme="light"] .glass-card {
+  background: rgba(241, 245, 249, 0.6) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  backdrop-filter: blur(6px);
+}
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* GREY THEME (greyscale dark) */
+[data-theme="grey"] body {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+[data-theme="grey"] .glass-panel {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+}
+[data-theme="grey"] .glass-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(6px);
+}
+[data-theme="grey"] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+[data-theme="grey"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+[data-theme="grey"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* DARK THEME (pure dark, minimal glass) */
+[data-theme="dark"] body {
+  background-color: #020617;
+  color: #f8fafc;
+}
+[data-theme="dark"] .glass-panel {
+  background: rgba(2, 6, 23, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(4px);
+}
+[data-theme="dark"] .glass-card {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(2px);
+}
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}

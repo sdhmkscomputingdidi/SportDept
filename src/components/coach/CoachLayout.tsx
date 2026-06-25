@@ -9,6 +9,12 @@ export const CoachLayout: React.FC = () => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const fetchCoachData = async () => {
@@ -127,6 +133,16 @@ export const CoachLayout: React.FC = () => {
               <NavSection label="Manage Events" id="events" />
             </nav>
             <div className="border-t border-slate-800 pt-4">
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500 mb-3"
+              >
+                <option value="default">Default</option>
+                <option value="light">Light</option>
+                <option value="grey">Grey</option>
+                <option value="dark">Dark</option>
+              </select>
               <p className="text-sm font-semibold">{userName}</p>
               <button onClick={handleLogout} className="text-xs text-red-400 mt-2">Sign Out</button>
             </div>
@@ -146,6 +162,16 @@ export const CoachLayout: React.FC = () => {
           </nav>
         </div>
         <div className="border-t border-slate-800 pt-4">
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500 mb-3"
+          >
+            <option value="default">Default</option>
+            <option value="light">Light</option>
+            <option value="grey">Grey</option>
+            <option value="dark">Dark</option>
+          </select>
           <p className="text-sm font-semibold">{userName}</p>
           <button onClick={handleLogout} className="text-xs text-red-400 mt-2">Sign Out</button>
         </div>

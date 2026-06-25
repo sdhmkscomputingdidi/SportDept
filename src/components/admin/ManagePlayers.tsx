@@ -35,7 +35,7 @@ export const ManagePlayers: React.FC = () => {
   
   // Edit/CRUD State
   const [editPlayer, setEditPlayer] = useState<any | null>(null);
-  const [allSports, setAllSports] = useState<any[]>([]);
+  const [coachSports, setCoachSports] = useState<any[]>([]);
   const [playerEvents, setPlayerEvents] = useState<any[]>([]);
 
   const fetchPlayers = async () => {
@@ -56,8 +56,32 @@ export const ManagePlayers: React.FC = () => {
 
   useEffect(() => {
     fetchPlayers();
-    supabase.from('sports').select('id, name').then(({ data }) => setAllSports(data || []));
   }, [sportId]);
+
+  useEffect(() => {
+    const fetchCoachSports = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('coaches_sports')
+        .select(`
+          sport_id,
+          sports (
+            id,
+            name
+          )
+        `)
+        .eq('coach_id', user.id);
+      const list: any[] = [];
+      data?.forEach((item: any) => {
+        if (item.sports) {
+          list.push({ id: item.sports.id, name: item.sports.name });
+        }
+      });
+      setCoachSports(list);
+    };
+    fetchCoachSports();
+  }, []);
 
   useEffect(() => {
     const fetchPlayerEvents = async () => {
@@ -348,7 +372,7 @@ export const ManagePlayers: React.FC = () => {
             <h3 className="text-lg font-bold mb-4">Edit Student</h3>
             <input className="w-full bg-slate-800 p-2 mb-4 rounded" value={editPlayer.full_name} onChange={e => setEditPlayer({...editPlayer, full_name: e.target.value})} />
             <select className="w-full bg-slate-800 p-2 mb-4 rounded" value={editPlayer.sport_id} onChange={e => setEditPlayer({...editPlayer, sport_id: e.target.value})}>
-              {allSports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {coachSports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <div className="flex justify-between gap-2">
               <button type="button" onClick={handleDeletePlayer} className="text-red-400 text-sm">Delete</button>

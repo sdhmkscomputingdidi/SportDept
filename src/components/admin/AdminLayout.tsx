@@ -8,6 +8,12 @@ export const AdminLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sports, setSports] = useState<{ id: string; name: string }[]>([]);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -146,6 +152,16 @@ export const AdminLayout: React.FC = () => {
 
         {/* User Footer */}
         <div className="p-4 border-t border-slate-800/80 space-y-3">
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500"
+          >
+            <option value="default">Default</option>
+            <option value="light">Light</option>
+            <option value="grey">Grey</option>
+            <option value="dark">Dark</option>
+          </select>
           <div className="flex items-center gap-3 px-2">
             <div className="w-9 h-9 rounded-full bg-violet-600/35 border border-violet-500/50 flex items-center justify-center text-sm font-bold text-violet-200 uppercase">
               {userName.charAt(0)}
