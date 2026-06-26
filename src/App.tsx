@@ -103,10 +103,6 @@ function App() {
           path="/login"
           element={session && role ? <Navigate to={role === 'head_coach' ? '/admin' : '/coach'} replace /> : <Auth onAuthSuccess={handleAuthSuccess} />}
         />
-        <Route
-          path="/register"
-          element={session && role ? <Navigate to={role === 'head_coach' ? '/admin' : '/coach'} replace /> : <Auth onAuthSuccess={handleAuthSuccess} />}
-        />
 
         {/* Head Coach Workspace */}
         <Route

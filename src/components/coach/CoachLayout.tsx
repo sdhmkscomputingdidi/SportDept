@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import { ChangePasswordModal } from '../shared/ChangePasswordModal';
 
 export const CoachLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export const CoachLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -171,6 +173,12 @@ export const CoachLayout: React.FC = () => {
                 ))}
               </div>
               <p className="text-sm font-semibold">{userName}</p>
+              <button
+                onClick={() => { setPasswordModalOpen(true); closeSidebar(); }}
+                className="text-xs text-violet-400 hover:text-violet-300 mt-1.5 block transition-colors"
+              >
+                🔑 Change Password
+              </button>
               <button onClick={handleLogout} className="text-xs text-red-400 mt-2">Sign Out</button>
             </div>
           </aside>
@@ -225,6 +233,12 @@ export const CoachLayout: React.FC = () => {
             ))}
           </div>
           <p className="text-sm font-semibold">{userName}</p>
+          <button
+            onClick={() => setPasswordModalOpen(true)}
+            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+          >
+            🔑 Change Password
+          </button>
           <button onClick={handleLogout} className="text-xs text-red-400 mt-2">Sign Out</button>
         </div>
       </aside>
@@ -320,6 +334,12 @@ export const CoachLayout: React.FC = () => {
       <main className="flex-1 pt-14 md:pt-8 p-4 md:p-8 overflow-y-auto pb-20 md:pb-8">
         <Outlet />
       </main>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+      />
     </div>
   );
 };

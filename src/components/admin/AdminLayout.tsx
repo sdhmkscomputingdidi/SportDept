@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import { ChangePasswordModal } from '../shared/ChangePasswordModal';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export const AdminLayout: React.FC = () => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -279,6 +281,12 @@ export const AdminLayout: React.FC = () => {
             </div>
           </div>
           <button
+            onClick={() => setPasswordModalOpen(true)}
+            className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-violet-400 hover:bg-violet-950/20 hover:text-violet-300 transition-colors"
+          >
+            🔑 Change Password
+          </button>
+          <button
             onClick={handleLogout}
             className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-950/20 hover:text-red-300 transition-colors"
           >
@@ -411,6 +419,12 @@ export const AdminLayout: React.FC = () => {
                   </div>
                 </div>
                 <button
+                  onClick={() => { setPasswordModalOpen(true); setSidebarOpen(false); }}
+                  className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-violet-400 hover:bg-violet-950/20 hover:text-violet-300 transition-colors"
+                >
+                  🔑 Change Password
+                </button>
+                <button
                   onClick={() => { setSidebarOpen(false); handleLogout(); }}
                   className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-950/20 hover:text-red-300 transition-colors"
                 >
@@ -522,6 +536,12 @@ export const AdminLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+      />
     </div>
   );
 };
