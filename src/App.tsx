@@ -14,6 +14,10 @@ import { AddStudent } from './components/coach/AddStudent';
 import { ManageCriteria } from './components/coach/ManageCriteria';
 import { GradeStudents } from './components/coach/GradeStudents';
 import { ManageEvents } from './components/coach/ManageEvents';
+import { CoachAttendance } from './components/coach/CoachAttendance';
+import { AdminAttendance } from './components/admin/AdminAttendance';
+import { TrainingSchedule } from './components/admin/TrainingSchedule';
+import { ManageHolidays } from './components/admin/ManageHolidays';
 import type { Session } from '@supabase/supabase-js';
 
 function App() {
@@ -119,12 +123,16 @@ function App() {
             <Route path="events/:sportId" element={<AdminManageEvents />} />
             <Route path="criteria" element={<AdminManageCriteria />} />
             <Route path="criteria/:sportId" element={<AdminManageCriteria />} />
+            <Route path="attendance" element={<AdminAttendance />} />
+            <Route path="attendance/:sportId" element={<AdminAttendance />} />
+            <Route path="training-schedule" element={<TrainingSchedule />} />
+            <Route path="holidays" element={<ManageHolidays />} />
           </Route>
         </Route>
 
         {/* Coach Workspace */}
         <Route path="/coach" element={<CoachLayout />}>
-          {/* The path MUST match the structure of your links */}
+          <Route index element={<Navigate to="/coach/attendance" replace />} />
           <Route path="criteria/:sportId" element={<ManageCriteria />} />
           <Route path="grade/:sportId" element={<GradeStudents />} />
           <Route path="grade/:sportId/:studentId" element={<GradeStudents />} />
@@ -132,6 +140,8 @@ function App() {
           <Route path="players/:sportId" element={<ManagePlayers />} />
           <Route path="events" element={<ManageEvents />} />
           <Route path="events/:sportId" element={<ManageEvents />} />
+          <Route path="attendance" element={<CoachAttendance />} />
+          <Route path="attendance/:sportId" element={<CoachAttendance />} />
         </Route>
 
         {/* Fallback routing layer */}

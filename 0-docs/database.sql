@@ -92,3 +92,22 @@ CREATE TABLE public.rubrics (
   CONSTRAINT rubrics_pkey PRIMARY KEY (id),
   CONSTRAINT rubrics_skill_id_fkey FOREIGN KEY (skill_id) REFERENCES public.skills(id)
 );
+CREATE TABLE public.events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  sport_id uuid NOT NULL,
+  name text NOT NULL,
+  event_date date NOT NULL DEFAULT (timezone('utc'::text, now()))::date,
+  description text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  notes text,
+  CONSTRAINT events_pkey PRIMARY KEY (id),
+  CONSTRAINT events_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id)
+);
+CREATE TABLE public.players_events (
+  player_id uuid NOT NULL,
+  event_id uuid NOT NULL,
+  joined_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT players_events_pkey PRIMARY KEY (player_id, event_id),
+  CONSTRAINT players_events_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.players(id),
+  CONSTRAINT players_events_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id)
+);

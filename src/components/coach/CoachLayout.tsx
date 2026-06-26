@@ -128,10 +128,11 @@ export const CoachLayout: React.FC = () => {
               </button>
             </div>
             <nav className="space-y-2">
-              <NavSection label="Manage Criteria" id="criteria" />
+              <NavSection label="📋 Attendance" id="attendance" />
               <NavSection label="Grade Students" id="grade" />
-              <NavSection label="Manage Students" id="players" />
+              <NavSection label="Manage Criteria" id="criteria" />
               <NavSection label="Manage Events" id="events" />
+              <NavSection label="Manage Students" id="players" />
             </nav>
             <div className="border-t border-slate-800 pt-4">
               <select
@@ -156,10 +157,11 @@ export const CoachLayout: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold mb-8">SportDept <span className="text-violet-500">Coach</span></h1>
           <nav className="space-y-2">
-            <NavSection label="Manage Criteria" id="criteria" />
+            <NavSection label="📋 Attendance" id="attendance" />
             <NavSection label="Grade Students" id="grade" />
-            <NavSection label="Manage Students" id="players" />
+            <NavSection label="Manage Criteria" id="criteria" />
             <NavSection label="Manage Events" id="events" />
+            <NavSection label="Manage Students" id="players" />
           </nav>
         </div>
         <div className="border-t border-slate-800 pt-4">
@@ -193,17 +195,19 @@ export const CoachLayout: React.FC = () => {
           <span className="text-lg">📊</span>
           <span className="text-[10px] font-medium">Grade</span>
         </button>
-        <NavLink
-          to="/coach/players"
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
-              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
-            }`
-          }
+        <button
+          onClick={() => {
+            if (assignedSports.length > 0) {
+              navigate(`/coach/players/${assignedSports[0].id}`);
+            }
+          }}
+          className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+            location.pathname.startsWith('/coach/players') ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
           <span className="text-lg">🏃</span>
           <span className="text-[10px] font-medium">Students</span>
-        </NavLink>
+        </button>
         <NavLink
           to="/coach/events"
           className={({ isActive }) =>
@@ -215,17 +219,19 @@ export const CoachLayout: React.FC = () => {
           <span className="text-lg">📅</span>
           <span className="text-[10px] font-medium">Events</span>
         </NavLink>
-        <NavLink
-          to="/coach/criteria"
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
-              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
-            }`
-          }
+        <button
+          onClick={() => {
+            if (assignedSports.length > 0) {
+              navigate(`/coach/criteria/${assignedSports[0].id}`);
+            }
+          }}
+          className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+            location.pathname.startsWith('/coach/criteria') ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
           <span className="text-lg">📋</span>
           <span className="text-[10px] font-medium">Criteria</span>
-        </NavLink>
+        </button>
         <NavLink
           to="/coach/add-student"
           className={({ isActive }) =>
@@ -236,6 +242,17 @@ export const CoachLayout: React.FC = () => {
         >
           <span className="text-lg">➕</span>
           <span className="text-[10px] font-medium">Add</span>
+        </NavLink>
+        <NavLink
+          to="/coach/attendance"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              location.pathname.startsWith('/coach/attendance') ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">📋</span>
+          <span className="text-[10px] font-medium">Attend</span>
         </NavLink>
       </nav>
 
