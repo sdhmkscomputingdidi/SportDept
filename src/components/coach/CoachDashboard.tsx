@@ -1,0 +1,395 @@
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
+} from 'recharts';
+
+interface DashboardStats {
+  sportsCount: number;
+  studentsCount: number;
+  eventsCount: number;
+  totalSessions: number;
+}
+
+interface RecentActivity {
+  id: string;
+  player_name: string;
+  sport_name: string;
+  date: string;
+  status: string;
+}
+
+interface TopStudent {
+  name: string;
+  present: number;
+  absent: number;
+  late: number;
+  total: number;
+  percentage: number;
+}
+
+interface AttendanceByDay {
+  day: string;
+  present: number;
+  absent: number;
+  late: number;
+}
+
+interface StatusBreakdown {
+  name: string;
+  value: number;
+  color: string;
+}
+
+const PIE_COLORS = ['#34d399', '#f87171', '#fbbf24'];
+
+export const CoachDashboard: React.FC = () => {
+  const [stats, setStats] = useState<DashboardStats>({
+    sportsCount: 0, studentsCount: 0, eventsCount: 0, totalSessions: 0,
+  });
+  const [assignedSports, setAssignedSports] = useState<{ id: string; name: string }[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [topStudents, setTopStudents] = useState<TopStudent[]>([]);
+  const [attendanceByDay, setAttendanceByDay] = useState<AttendanceByDay[]>([]);
+  const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      try {
+        // Fetch assigned sports
+        const { data: sportsData } = await supabase
+          .from('coaches_sports')
+          .select('sports(id, name)')
+          .eq('coach_id', user.id);
+
+        const sportsList = (sportsData || []).map((item: any) => item.sports).filter(Boolean);
+        setAssignedSports(sportsList);
+        const sportId = sportsList[0]?.id || '';
+
+        if (!sportId) {
+          setLoading(false);
+          return;
+        }
+
+        // Get all sport IDs
+        const sportIds = sportsList.map((s: any) => s.id);
+
+        // Fetch related data
+        const [{ count: studentsCount }, { count: eventsCount }, { data: attData }, { data: playersData }] =
+          await Promise.all([
+            supabase.from('players').select('*', { count: 'exact', head: true }).in('sport_id', sportIds),
+            supabase.from('events').select('*', { count: 'exact', head: true }).in('sport_id', sportIds),
+            supabase.from('player_attendance').select('id, player_id, sport_id, date, status').in('sport_id', sportIds),
+            supabase.from('players').select('id, full_name, sport_id').in('sport_id', sportIds),
+          ]);
+
+        const attRecords = (attData || []) as any[];
+        const players = (playersData || []) as any[];
+
+        setStats({
+          sportsCount: sportsList.length,
+          studentsCount: studentsCount || 0,
+          eventsCount: eventsCount || 0,
+          totalSessions: attRecords.length,
+        });
+
+        // Build player name map
+        const playerNameMap = new Map<string, string>();
+        players.forEach((p: any) => playerNameMap.set(p.id, p.full_name));
+
+        // Build sport name map
+        const sportNameMap = new Map<string, string>();
+        sportsList.forEach((s: any) => sportNameMap.set(s.id, s.name));
+
+        // Recent activity
+        const sorted = [...attRecords].sort((a: any, b: any) => b.date.localeCompare(a.date));
+        setRecentActivity(
+          sorted.slice(0, 10).map((r: any) => ({
+            id: r.id,
+            player_name: playerNameMap.get(r.player_id) || 'Unknown',
+            sport_name: sportNameMap.get(r.sport_id) || 'Unknown',
+            date: r.date,
+            status: r.status,
+          }))
+        );
+
+        // Top students
+        const studentAgg = new Map<string, { present: number; absent: number; late: number }>();
+        attRecords.forEach((r: any) => {
+          if (!studentAgg.has(r.player_id)) {
+            studentAgg.set(r.player_id, { present: 0, absent: 0, late: 0 });
+          }
+          const e = studentAgg.get(r.player_id)!;
+          if (r.status === 'present') e.present++;
+          else if (r.status === 'absent') e.absent++;
+          else if (r.status === 'late') e.late++;
+        });
+
+        const topList: TopStudent[] = [];
+        studentAgg.forEach((val, id) => {
+          const total = val.present + val.absent + val.late;
+          if (total > 0) {
+            topList.push({
+              name: playerNameMap.get(id) || 'Unknown',
+              ...val, total,
+              percentage: Math.round((val.present / total) * 100),
+            });
+          }
+        });
+        topList.sort((a, b) => b.percentage - a.percentage);
+        setTopStudents(topList.slice(0, 5));
+
+        // Attendance by day
+        const dayMap = new Map<string, { present: number; absent: number; late: number }>();
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayNames.forEach(d => dayMap.set(d, { present: 0, absent: 0, late: 0 }));
+
+        attRecords.forEach((r: any) => {
+          const day = dayNames[new Date(r.date + 'T00:00:00').getDay()];
+          const entry = dayMap.get(day)!;
+          if (r.status === 'present') entry.present++;
+          else if (r.status === 'absent') entry.absent++;
+          else if (r.status === 'late') entry.late++;
+        });
+
+        setAttendanceByDay(dayNames.map(d => ({ day: d, ...dayMap.get(d)! })));
+
+        // Status breakdown
+        let present = 0, absent = 0, late = 0;
+        attRecords.forEach((r: any) => {
+          if (r.status === 'present') present++;
+          else if (r.status === 'absent') absent++;
+          else if (r.status === 'late') late++;
+        });
+        const total = present + absent + late;
+        setStatusBreakdown(
+          total > 0
+            ? [
+                { name: 'Present', value: Math.round((present / total) * 100), color: '#34d399' },
+                { name: 'Absent', value: Math.round((absent / total) * 100), color: '#f87171' },
+                { name: 'Late', value: Math.round((late / total) * 100), color: '#fbbf24' },
+              ]
+            : []
+        );
+      } catch (err) {
+        console.warn('Failed to fetch dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAll();
+  }, []);
+
+  const cards = [
+    { label: 'Sports', value: stats.sportsCount, icon: '📊', color: 'from-violet-500/20 to-violet-600/10 border-violet-500/30', textColor: 'text-violet-300' },
+    { label: 'Students', value: stats.studentsCount, icon: '🏃', color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30', textColor: 'text-emerald-300' },
+    { label: 'Events', value: stats.eventsCount, icon: '📅', color: 'from-amber-500/20 to-amber-600/10 border-amber-500/30', textColor: 'text-amber-300' },
+    { label: 'Sessions', value: stats.totalSessions, icon: '🎯', color: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30', textColor: 'text-cyan-300' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
+      </div>
+    );
+  }
+
+  if (assignedSports.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-extrabold tracking-tight text-white m-0">🏠 Dashboard</h2>
+          <p className="text-sm text-slate-400 mt-1">Welcome, Coach!</p>
+        </div>
+        <div className="glass-panel rounded-xl p-8 text-center text-slate-400">
+          No sports assigned to your coach account yet.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-extrabold tracking-tight text-white m-0">🏠 Dashboard</h2>
+        <p className="text-sm text-slate-400 mt-1">Welcome back! Here's your overview</p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {cards.map((card) => (
+          <div key={card.label}
+            className={`rounded-xl bg-gradient-to-br ${card.color} border p-5 transition-all hover:scale-[1.02] hover:shadow-lg group`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-2xl">{card.icon}</span>
+              <span className="text-2xl font-extrabold text-white group-hover:scale-110 transition-transform">{card.value}</span>
+            </div>
+            <p className={`text-xs font-bold uppercase tracking-wider ${card.textColor}`}>{card.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Attendance by Day */}
+        <div className="glass-panel border border-slate-800/60 rounded-xl p-6">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">📊 Student Attendance by Day</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={attendanceByDay} barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis dataKey="day" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <Tooltip
+                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#f1f5f9', fontWeight: 600 }}
+                />
+                <Bar dataKey="present" name="Present" fill="#34d399" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="absent" name="Absent" fill="#f87171" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="late" name="Late" fill="#fbbf24" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Status Breakdown Donut */}
+        <div className="glass-panel border border-slate-800/60 rounded-xl p-6">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">🍩 Student Attendance Breakdown</h3>
+          {statusBreakdown.length > 0 ? (
+            <div className="flex items-center gap-6">
+              <div className="h-52 w-52 flex-shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusBreakdown}
+                      cx="50%" cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      dataKey="value"
+                      paddingAngle={3}
+                    >
+                      {statusBreakdown.map((_, idx) => (
+                        <Cell key={idx} fill={PIE_COLORS[idx]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                      formatter={(value) => `${value}%`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2">
+                {statusBreakdown.map((s) => (
+                  <div key={s.name} className="flex items-center gap-2 text-sm">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }}></span>
+                    <span className="text-slate-400">{s.name}</span>
+                    <span className="text-white font-bold">{s.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 text-center py-8">No attendance data yet</p>
+          )}
+        </div>
+      </div>
+
+      {/* Top Students */}
+      <div className="glass-panel border border-slate-800/60 rounded-xl p-6">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">🏆 Top Students by Attendance</h3>
+        {topStudents.length > 0 ? (
+          <div className="space-y-2">
+            {topStudents.map((student, idx) => (
+              <div key={student.name} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-800/30">
+                <span className="w-6 h-6 rounded-full bg-emerald-600/30 text-emerald-300 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{student.name}</p>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                    <span className="text-emerald-400">✅ {student.present}</span>
+                    <span className="text-red-400">❌ {student.absent}</span>
+                    <span className="text-amber-400">⏰ {student.late}</span>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className={`text-sm font-bold ${
+                    student.percentage >= 80 ? 'text-emerald-400' : student.percentage >= 60 ? 'text-amber-400' : 'text-red-400'
+                  }`}>{student.percentage}%</p>
+                  <p className="text-[9px] text-slate-600">{student.total} sessions</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 text-center py-4">No attendance data yet</p>
+        )}
+      </div>
+
+      {/* Recent Activity */}
+      <div className="glass-panel border border-slate-800/60 rounded-xl p-6">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">🕐 Recent Student Attendance</h3>
+        {recentActivity.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-800/60">
+                  <th className="pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Student</th>
+                  <th className="pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sport</th>
+                  <th className="pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                  <th className="pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentActivity.map((act) => (
+                  <tr key={act.id} className="border-b border-slate-800/40 hover:bg-slate-800/20">
+                    <td className="py-2.5 text-sm text-white">{act.player_name}</td>
+                    <td className="py-2.5 text-sm text-slate-400">{act.sport_name}</td>
+                    <td className="py-2.5 text-sm text-slate-400">{act.date}</td>
+                    <td className="py-2.5">
+                      <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold ${
+                        act.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' :
+                        act.status === 'absent' ? 'bg-red-500/10 text-red-400' :
+                        'bg-amber-500/10 text-amber-400'
+                      }`}>{act.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
+        )}
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {assignedSports.slice(0, 4).map((sport) => (
+          <Link
+            key={sport.id}
+            to={`/coach/attendance/${sport.id}`}
+            className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-slate-800/40 border border-slate-700/40 hover:bg-slate-700/40 hover:border-violet-500/30 text-slate-300 hover:text-white transition-all text-sm font-medium"
+          >
+            <span>📋</span>
+            <div>
+              <p className="text-sm font-medium text-white">{sport.name}</p>
+              <p className="text-[10px] text-slate-500">Take attendance</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+};

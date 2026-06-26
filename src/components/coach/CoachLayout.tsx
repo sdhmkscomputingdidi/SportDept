@@ -128,6 +128,19 @@ export const CoachLayout: React.FC = () => {
               </button>
             </div>
             <nav className="space-y-2">
+              <NavLink
+                to="/coach/dashboard"
+                onClick={closeSidebar}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-violet-600/25 text-violet-300 border-l-2 border-violet-500 pl-2.5 shadow-inner'
+                      : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+                  }`
+                }
+              >
+                🏠 Dashboard
+              </NavLink>
               <NavSection label="📋 Attendance" id="attendance" />
               <NavSection label="Grade Students" id="grade" />
               <NavSection label="Manage Criteria" id="criteria" />
@@ -135,16 +148,28 @@ export const CoachLayout: React.FC = () => {
               <NavSection label="Manage Students" id="players" />
             </nav>
             <div className="border-t border-slate-800 pt-4">
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500 mb-3"
-              >
-                <option value="default">Default</option>
-                <option value="light">Light</option>
-                <option value="grey">Grey</option>
-                <option value="dark">Dark</option>
-              </select>
+              <div className="flex items-center gap-1.5 px-1 mb-3">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Theme</span>
+                {([
+                  { value: 'default', label: '🌙', title: 'Default' },
+                  { value: 'light', label: '☀️', title: 'Light' },
+                  { value: 'grey', label: '🌫️', title: 'Grey' },
+                  { value: 'dark', label: '🌑', title: 'Dark' },
+                ] as const).map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setTheme(t.value)}
+                    title={t.title}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-all ${
+                      theme === t.value
+                        ? 'bg-violet-600/30 text-violet-300 ring-1 ring-violet-500/50'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <p className="text-sm font-semibold">{userName}</p>
               <button onClick={handleLogout} className="text-xs text-red-400 mt-2">Sign Out</button>
             </div>
@@ -157,6 +182,18 @@ export const CoachLayout: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold mb-8">SportDept <span className="text-violet-500">Coach</span></h1>
           <nav className="space-y-2">
+            <NavLink
+              to="/coach/dashboard"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive
+                    ? 'bg-violet-600/25 text-violet-300 border-l-2 border-violet-500 pl-2.5 shadow-inner'
+                    : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+                }`
+              }
+            >
+              🏠 Dashboard
+            </NavLink>
             <NavSection label="📋 Attendance" id="attendance" />
             <NavSection label="Grade Students" id="grade" />
             <NavSection label="Manage Criteria" id="criteria" />
@@ -165,16 +202,28 @@ export const CoachLayout: React.FC = () => {
           </nav>
         </div>
         <div className="border-t border-slate-800 pt-4">
-          <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500 mb-3"
-          >
-            <option value="default">Default</option>
-            <option value="light">Light</option>
-            <option value="grey">Grey</option>
-            <option value="dark">Dark</option>
-          </select>
+          <div className="flex items-center gap-1.5 px-1 mb-3">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Theme</span>
+            {([
+              { value: 'default', label: '🌙', title: 'Default' },
+              { value: 'light', label: '☀️', title: 'Light' },
+              { value: 'grey', label: '🌫️', title: 'Grey' },
+              { value: 'dark', label: '🌑', title: 'Dark' },
+            ] as const).map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setTheme(t.value)}
+                title={t.title}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-all ${
+                  theme === t.value
+                    ? 'bg-violet-600/30 text-violet-300 ring-1 ring-violet-500/50'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
           <p className="text-sm font-semibold">{userName}</p>
           <button onClick={handleLogout} className="text-xs text-red-400 mt-2">Sign Out</button>
         </div>
@@ -182,6 +231,17 @@ export const CoachLayout: React.FC = () => {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-panel border-t border-slate-800/80 flex justify-around items-center py-2 px-1 safe-area-pb">
+        <NavLink
+          to="/coach/dashboard"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+              isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+            }`
+          }
+        >
+          <span className="text-lg">🏠</span>
+          <span className="text-[10px] font-medium">Home</span>
+        </NavLink>
         <button
           onClick={() => {
             if (assignedSports.length > 0) {
@@ -245,7 +305,7 @@ export const CoachLayout: React.FC = () => {
         </NavLink>
         <NavLink
           to="/coach/attendance"
-          className={({ isActive }) =>
+          className={() =>
             `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
               location.pathname.startsWith('/coach/attendance') ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
             }`

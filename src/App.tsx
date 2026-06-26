@@ -14,7 +14,9 @@ import { AddStudent } from './components/coach/AddStudent';
 import { ManageCriteria } from './components/coach/ManageCriteria';
 import { GradeStudents } from './components/coach/GradeStudents';
 import { ManageEvents } from './components/coach/ManageEvents';
+import { CoachDashboard } from './components/coach/CoachDashboard';
 import { CoachAttendance } from './components/coach/CoachAttendance';
+import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminAttendance } from './components/admin/AdminAttendance';
 import { TrainingSchedule } from './components/admin/TrainingSchedule';
 import { ManageHolidays } from './components/admin/ManageHolidays';
@@ -112,7 +114,8 @@ function App() {
           element={session && role === 'head_coach' ? <Outlet /> : <Navigate to={role === 'coach' ? '/coach' : '/login'} replace />}
         >
           <Route element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/sports" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="sports" element={<ManageSports />} />
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="grade/:sportId" element={<GradeStudents />} />
@@ -132,7 +135,8 @@ function App() {
 
         {/* Coach Workspace */}
         <Route path="/coach" element={<CoachLayout />}>
-          <Route index element={<Navigate to="/coach/attendance" replace />} />
+          <Route index element={<Navigate to="/coach/dashboard" replace />} />
+          <Route path="dashboard" element={<CoachDashboard />} />
           <Route path="criteria/:sportId" element={<ManageCriteria />} />
           <Route path="grade/:sportId" element={<GradeStudents />} />
           <Route path="grade/:sportId/:studentId" element={<GradeStudents />} />

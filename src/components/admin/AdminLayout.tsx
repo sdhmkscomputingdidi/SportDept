@@ -201,6 +201,18 @@ export const AdminLayout: React.FC = () => {
           {/* Navigation Links */}
           <nav className="p-4 space-y-1">
             <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Management</p>
+            <NavLink
+              to="/admin/dashboard"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive
+                    ? 'bg-violet-600/25 text-violet-300 border-l-2 border-violet-500 pl-2.5 shadow-inner'
+                    : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+                }`
+              }
+            >
+              🏠 Dashboard
+            </NavLink>
             <NavSection label="📋 Attendance" id="attendance" basePath="/admin/attendance" />
             <NavSection label="Grade Students" id="grade" basePath="/admin/grade" />
             <NavLink
@@ -321,6 +333,19 @@ export const AdminLayout: React.FC = () => {
               </div>
               <nav className="space-y-2 flex-1">
                 <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Management</p>
+                <NavLink
+                  to="/admin/dashboard"
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-violet-600/25 text-violet-300 border-l-2 border-violet-500 pl-2.5 shadow-inner'
+                        : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+                    }`
+                  }
+                >
+                  🏠 Dashboard
+                </NavLink>
                 <NavSectionMobile label="📋 Attendance" id="attendance" basePath="/admin/attendance" closeSidebar={() => setSidebarOpen(false)} />
                 <NavSectionMobile label="Grade Students" id="grade" basePath="/admin/grade" closeSidebar={() => setSidebarOpen(false)} />
                 <NavLink
@@ -399,8 +424,19 @@ export const AdminLayout: React.FC = () => {
         {/* Mobile Bottom Navigation */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-panel border-t border-slate-800/80 flex justify-around items-center py-2 px-1 safe-area-pb">
           <NavLink
-            to="/admin/attendance"
+            to="/admin/dashboard"
             className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
+                isActive ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
+              }`
+            }
+          >
+            <span className="text-lg">🏠</span>
+            <span className="text-[10px] font-medium">Home</span>
+          </NavLink>
+          <NavLink
+            to="/admin/attendance"
+            className={() =>
               `flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
                 location.pathname.startsWith('/admin/attendance') ? 'text-violet-400' : 'text-slate-400 hover:text-slate-200'
               }`
