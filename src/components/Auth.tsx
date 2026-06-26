@@ -69,7 +69,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             <img 
               src="/logo.jpg" 
               alt="SportDept Logo" 
-              className="w-16 h-16 object-contain rounded-xl shadow-lg border border-slate-700/50"
+              className="w-32 h-32 object-contain rounded-xl shadow-lg border border-slate-700/50"
             />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white m-0 mb-2">
