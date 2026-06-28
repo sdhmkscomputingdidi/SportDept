@@ -84,19 +84,71 @@ export const ManageSports: React.FC = () => {
   };
 
   const handleDeleteSport = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this sport? Doing so will remove all coaching and student associations.')) return;
+    if (!window.confirm('Are you sure you want to delete this sport? This will remove all associated data: coaches, students, events, attendance records, assessment criteria, training schedules, and holidays.')) return;
     setError(null);
+    setFormLoading(true);
 
     try {
+      // 1. Delete coach-sport assignments
+      await supabase.from('coaches_sports').delete().eq('sport_id', id);
+
+      // 2. Unassign all players from this sport (preserve student records)
+      await supabase.from('players').update({ sport_id: null }).eq('sport_id', id);
+
+      // 3. Delete events and their participant links
+      const { data: events } = await supabase.from('events').select('id').eq('sport_id', id);
+      if (events && events.length > 0) {
+        const eventIds = events.map(e => e.id);
+        await supabase.from('players_events').delete().in('event_id', eventIds);
+        await supabase.from('events').delete().in('id', eventIds);
+      }
+
+      // 4. Delete attendance records
+      await supabase.from('coach_attendance').delete().eq('sport_id', id);
+      await supabase.from('player_attendance').delete().eq('sport_id', id);
+
+      // 5. Delete training schedule & holidays
+      await supabase.from('sport_training_days').delete().eq('sport_id', id);
+      await supabase.from('holidays').delete().eq('sport_id', id);
+
+      // 6. Delete assessment hierarchy: categories -> skills -> criteria & assessments
+      const { data: categories } = await supabase
+        .from('assessment_categories')
+        .select('id')
+        .eq('sport_id', id);
+
+      if (categories && categories.length > 0) {
+        const categoryIds = categories.map(c => c.id);
+
+        const { data: skills } = await supabase
+          .from('skills')
+          .select('id')
+          .in('category_id', categoryIds);
+
+        if (skills && skills.length > 0) {
+          const skillIds = skills.map(s => s.id);
+
+          await supabase.from('player_assessments').delete().in('skill_id', skillIds);
+          await supabase.from('skill_criteria').delete().in('skill_id', skillIds);
+          await supabase.from('skills').delete().in('id', skillIds);
+        }
+
+        await supabase.from('assessment_categories').delete().in('id', categoryIds);
+      }
+
+      // 7. Finally, delete the sport itself
       const { error: deleteErr } = await supabase
         .from('sports')
         .delete()
         .eq('id', id);
 
       if (deleteErr) throw deleteErr;
+
       fetchSports();
     } catch (err: any) {
       setError(err.message || 'Failed to delete sport. Make sure no dependent assessment configurations exist.');
+    } finally {
+      setFormLoading(false);
     }
   };
 
