@@ -42,7 +42,10 @@ const ManageCoaches: React.FC = () => {
   const [editFullName, setEditFullName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState<'coach' | 'head_coach'>('coach');
   const [editLoading, setEditLoading] = useState(false);
+
+  const [registerRole, setRegisterRole] = useState<'coach' | 'head_coach'>('coach');
 
   const [deleteTarget, setDeleteTarget] = useState<CoachProfile | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -51,11 +54,21 @@ const ManageCoaches: React.FC = () => {
     setFetching(true);
     setError(null);
     try {
-      // 1. Fetch profiles registered as coaches
-      const { data: profilesData, error: profilesError } = await supabase
+      // Get current user to exclude from the list
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const currentUserId = currentUser?.id || '';
+
+      // 1. Fetch profiles with coach or head_coach role (excluding current user)
+      let query = supabase
         .from('profiles')
         .select('id, full_name, role, created_at')
-        .eq('role', 'coach');
+        .in('role', ['coach', 'head_coach']);
+
+      if (currentUserId) {
+        query = query.neq('id', currentUserId);
+      }
+
+      const { data: profilesData, error: profilesError } = await query;
 
       if (profilesError) throw profilesError;
       setCoaches(profilesData || []);
@@ -117,7 +130,7 @@ const ManageCoaches: React.FC = () => {
         options: {
           data: {
             full_name: fullName.trim(),
-            role: 'coach',
+            role: registerRole,
           },
         },
       });
@@ -129,6 +142,7 @@ const ManageCoaches: React.FC = () => {
         setFullName('');
         setEmail('');
         setPassword('');
+        setRegisterRole('coach');
         await loadData();
       }
     } catch (err: any) {
@@ -192,7 +206,7 @@ const ManageCoaches: React.FC = () => {
     try {
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ full_name: editFullName.trim() })
+        .update({ full_name: editFullName.trim(), role: editRole })
         .eq('id', selectedCoach.id);
 
       if (profileError) throw profileError;
@@ -215,6 +229,7 @@ const ManageCoaches: React.FC = () => {
       setEditFullName('');
       setEditEmail('');
       setEditPassword('');
+      setEditRole('coach');
       setSelectedCoach(null);
       await loadData();
     } catch (err: any) {
@@ -339,6 +354,19 @@ const ManageCoaches: React.FC = () => {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Coach Role</label>
+              <select
+                value={registerRole}
+                onChange={(e) => setRegisterRole(e.target.value as 'coach' | 'head_coach')}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-white focus:outline-none focus:border-violet-500 transition-colors text-sm"
+              >
+                <option value="coach">Coach — standard access</option>
+                <option value="head_coach">Head Coach — full administrative access (God mode)</option>
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">Head Coaches have unrestricted access to all panels and features.</p>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -405,7 +433,18 @@ const ManageCoaches: React.FC = () => {
                         {coach.full_name?.charAt(0) || 'C'}
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-white mb-0.5">{coach.full_name}</h3>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h3 className="text-sm font-semibold text-white">{coach.full_name}</h3>
+                          {coach.role === 'head_coach' ? (
+                            <span className="text-[9px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                              Head Coach
+                            </span>
+                          ) : (
+                            <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 font-medium px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                              Coach
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] text-slate-500 tracking-wider font-mono">ID: {coach.id.slice(0, 8)}...</p>
                       </div>
                     </div>
@@ -430,6 +469,7 @@ const ManageCoaches: React.FC = () => {
                        <button
                          onClick={() => {
                            setSelectedCoach(coach);
+                           setEditRole(coach.role as 'coach' | 'head_coach');
                            setEditFullName(coach.full_name);
                            setEditEmail('');
                            setEditPassword('');
@@ -494,10 +534,21 @@ const ManageCoaches: React.FC = () => {
                    placeholder="Leave blank to keep current"
                  />
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Coach Role</label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as 'coach' | 'head_coach')}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500"
+                >
+                  <option value="coach">Coach — standard access</option>
+                  <option value="head_coach">Head Coach — full administrative access (God mode)</option>
+                </select>
+              </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => { setSelectedCoach(null); setEditFullName(''); setEditEmail(''); setEditPassword(''); }}
+                  onClick={() => { setSelectedCoach(null); setEditFullName(''); setEditEmail(''); setEditPassword(''); setEditRole('coach'); }}
                   className="text-xs font-semibold text-slate-400 hover:text-white px-3 py-2 transition-colors"
                 >
                   Cancel

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -50,6 +50,18 @@ export const ManageCriteria: React.FC = () => {
   const [newCritDesc, setNewCritDesc] = useState('');
   const [editingCrit, setEditingCrit] = useState<Criteria | null>(null);
   const [editCritDesc, setEditCritDesc] = useState('');
+
+  const newCritRef = useRef<HTMLTextAreaElement>(null);
+  const editCritRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
+  useEffect(() => { autoResize(newCritRef.current); }, [newCritDesc]);
+  useEffect(() => { autoResize(editCritRef.current); }, [editCritDesc]);
 
   // Form Submission Loaders
   const [actionLoading, setActionLoading] = useState(false);
@@ -599,12 +611,13 @@ export const ManageCriteria: React.FC = () => {
                 {/* Create Criteria Form */}
                 <form onSubmit={handleAddCriteria} className="space-y-2 mb-4">
                   <textarea
+                    ref={newCritRef}
                     required
                     rows={2}
                     value={newCritDesc}
                     onChange={(e) => setNewCritDesc(e.target.value)}
                     placeholder="Describe observable criteria (e.g. controls pass with soft touch)..."
-                    className="w-full bg-slate-900/60 border border-slate-700/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors text-xs resize-none"
+                    className="w-full bg-slate-900/60 border border-slate-700/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors text-xs resize-none overflow-hidden"
                   />
                   <button
                     type="submit"
@@ -634,11 +647,12 @@ export const ManageCriteria: React.FC = () => {
                               className="space-y-2"
                             >
                               <textarea
+                                ref={editCritRef}
                                 required
                                 rows={2}
                                 value={editCritDesc}
                                 onChange={(e) => setEditCritDesc(e.target.value)}
-                                className="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white text-xs resize-none"
+                                className="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white text-xs resize-none overflow-hidden"
                               />
                               <div className="flex gap-2 justify-end">
                                 <button type="submit" className="text-[10px] text-emerald-400 font-bold">Save</button>
