@@ -61,6 +61,13 @@ export const ManageEvents: React.FC = () => {
   const [editLoading, setEditLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [eventDateFrom, setEventDateFrom] = useState('');
+  const [eventDateTo, setEventDateTo] = useState('');
+  const [eventShowUpcoming, setEventShowUpcoming] = useState(false);
+  const [eventPage, setEventPage] = useState(1);
+  const EVENTS_PER_PAGE = 15;
 
   // Player stats data
   const [playerStatsMap, setPlayerStatsMap] = useState<Record<string, { attendance_pct: number; event_count: number }>>({});
@@ -521,7 +528,7 @@ export const ManageEvents: React.FC = () => {
       <div className={`w-full md:w-64 bg-slate-900 p-4 md:p-4 md:rounded-xl md:overflow-y-auto md:flex md:flex-col ${mobileView === 'participants' ? 'hidden md:block' : ''}`}>
         <h3 className="font-bold mb-4 uppercase text-xs text-slate-400">Events — {sports.find(s => s.id === selectedSportId)?.name || ''}</h3>
 
-        <form onSubmit={handleAddEvent} className="mb-4 space-y-2">
+        <form onSubmit={handleAddEvent} className="mb-3 space-y-2">
           <input
             type="text"
             required
@@ -552,56 +559,151 @@ export const ManageEvents: React.FC = () => {
           </button>
         </form>
 
-        <div className="space-y-2 flex-1">
-          {events.length === 0 ? (
-            <p className="text-xs text-slate-500 italic">No events yet.</p>
-          ) : (
-            events.map((evt) => (
-              <div
-                key={evt.id}
-                onClick={() => {
-                  setSelectedEvent(evt);
-                  setEditEvent(null);
-                  setMobileView('participants');
-                }}
-                className={`p-3 rounded cursor-pointer transition-colors ${
-                  selectedEvent?.id === evt.id
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                }`}
+        {/* Events Search, Sort, Date Range */}
+        <div className="mb-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={eventSearchQuery}
+                onChange={(e) => { setEventSearchQuery(e.target.value); setEventPage(1); }}
+                placeholder="🔍 Search events..."
+                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-[11px] focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <button
+              onClick={() => { setEventShowUpcoming(prev => !prev); setEventPage(1); }}
+              className={`flex items-center gap-1 text-[11px] border rounded px-2 py-1.5 transition-colors whitespace-nowrap ${
+                eventShowUpcoming
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+              }`}
+              title="Show only upcoming events"
+            >
+              🚀 Upcoming
+            </button>
+            <button
+              onClick={() => { setEventSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); setEventPage(1); }}
+              className="flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded px-2 py-1.5 text-slate-300 transition-colors whitespace-nowrap"
+              title={eventSortOrder === 'asc' ? 'Sorted: Oldest first' : 'Sorted: Newest first'}
+            >
+              {eventSortOrder === 'asc' ? '📅 Oldest' : '📅 Recent'}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={eventDateFrom}
+              onChange={(e) => { setEventDateFrom(e.target.value); setEventPage(1); }}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-[11px] focus:outline-none focus:border-violet-500"
+              placeholder="From"
+            />
+            <span className="text-[10px] text-slate-500">→</span>
+            <input
+              type="date"
+              value={eventDateTo}
+              onChange={(e) => { setEventDateTo(e.target.value); setEventPage(1); }}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-[11px] focus:outline-none focus:border-violet-500"
+              placeholder="To"
+            />
+            {(eventDateFrom || eventDateTo) && (
+              <button
+                onClick={() => { setEventDateFrom(''); setEventDateTo(''); setEventPage(1); }}
+                className="text-[10px] text-red-400 hover:text-red-300 whitespace-nowrap"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{evt.name}</p>
-                    <p className="text-[10px] text-slate-400">{evt.event_date}</p>
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filtered, Sorted & Paginated Events */}
+        <div className="space-y-2 flex-1">
+          {(() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const filtered = events
+              .filter(evt =>
+                (evt.name.toLowerCase().includes(eventSearchQuery.toLowerCase()) ||
+                evt.event_date.includes(eventSearchQuery)) &&
+                (!eventDateFrom || evt.event_date >= eventDateFrom) &&
+                (!eventDateTo || evt.event_date <= eventDateTo) &&
+                (!eventShowUpcoming || evt.event_date >= todayStr)
+              )
+              .sort((a, b) => {
+                const cmp = a.event_date.localeCompare(b.event_date);
+                return eventSortOrder === 'asc' ? cmp : -cmp;
+              });
+
+            const totalShown = eventPage * EVENTS_PER_PAGE;
+            const paginated = filtered.slice(0, totalShown);
+            const hasMore = paginated.length < filtered.length;
+
+            if (filtered.length === 0) {
+              return (
+                <p className="text-xs text-slate-500 italic">
+                  {eventSearchQuery || eventDateFrom || eventDateTo || eventShowUpcoming ? 'No events match your filters.' : 'No events yet.'}
+                </p>
+              );
+            }
+
+            return (
+              <>
+                {paginated.map((evt) => (
+                  <div
+                    key={evt.id}
+                    onClick={() => {
+                      setSelectedEvent(evt);
+                      setEditEvent(null);
+                      setMobileView('participants');
+                    }}
+                    className={`p-3 rounded cursor-pointer transition-colors ${
+                      selectedEvent?.id === evt.id
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate">{evt.name}</p>
+                        <p className="text-[10px] text-slate-400">{evt.event_date}</p>
+                      </div>
+                      <div className="flex gap-1 ml-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditEvent(evt);
+                            setEditName(evt.name);
+                            setEditDate(evt.event_date);
+                            setEditNotes(evt.notes || '');
+                          }}
+                          className="text-[10px] text-violet-300 hover:underline"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEvent(evt.id);
+                          }}
+                          className="text-[10px] text-red-400 hover:underline"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-1 ml-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditEvent(evt);
-                        setEditName(evt.name);
-                        setEditDate(evt.event_date);
-                        setEditNotes(evt.notes || '');
-                      }}
-                      className="text-[10px] text-violet-300 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteEvent(evt.id);
-                      }}
-                      className="text-[10px] text-red-400 hover:underline"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+                ))}
+                {hasMore && (
+                  <button
+                    onClick={() => setEventPage(prev => prev + 1)}
+                    className="w-full py-2 text-[11px] text-violet-400 hover:text-violet-300 bg-slate-800/50 hover:bg-slate-700/50 rounded border border-slate-700/50 transition-colors"
+                  >
+                    Load More ({filtered.length - totalShown} remaining)
+                  </button>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 

@@ -46,10 +46,11 @@ interface StatCardProps {
   icon: string;
   color?: StatCardColor;
   link?: string;
+  total?: number;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
-  label, value, icon, color = 'violet', link,
+  label, value, icon, color = 'violet', link, total,
 }) => {
   const cfg = COLOR_CONFIG[color];
   const classes = `rounded-xl bg-gradient-to-br ${cfg.gradient} border ${cfg.border} p-5 transition-all hover:scale-[1.02] hover:shadow-lg group`;
@@ -58,9 +59,16 @@ export const StatCard: React.FC<StatCardProps> = ({
     <>
       <div className="flex items-center justify-between mb-3">
         <span className="text-2xl">{icon}</span>
-        <span className="text-2xl font-extrabold text-white group-hover:scale-110 transition-transform">
-          {value}
-        </span>
+        <div className="flex items-end gap-1.5">
+          <span className="text-2xl font-extrabold text-white group-hover:scale-110 transition-transform">
+            {value}
+          </span>
+          {total !== undefined && (
+            <span className="text-[10px] text-slate-500 font-semibold mb-0.5 whitespace-nowrap">
+              / {total} total
+            </span>
+          )}
+        </div>
       </div>
       <p className={`text-xs font-bold uppercase tracking-wider ${cfg.text}`}>{label}</p>
     </>

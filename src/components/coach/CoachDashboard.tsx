@@ -12,6 +12,7 @@ interface DashboardStats {
   sportsCount: number;
   studentsCount: number;
   eventsCount: number;
+  totalEventsCount: number;
   totalSessions: number;
 }
 
@@ -49,8 +50,9 @@ const PIE_COLORS = ['#34d399', '#f87171', '#fbbf24'];
 
 export const CoachDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
-    sportsCount: 0, studentsCount: 0, eventsCount: 0, totalSessions: 0,
+    sportsCount: 0, studentsCount: 0, eventsCount: 0, totalEventsCount: 0, totalSessions: 0,
   });
+  const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; name: string; event_date: string; sport_name: string; sport_id: string }[]>([]);
   const [assignedSports, setAssignedSports] = useState<{ id: string; name: string }[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [topStudents, setTopStudents] = useState<TopStudent[]>([]);
@@ -88,47 +90,42 @@ export const CoachDashboard: React.FC = () => {
       // Get all sport IDs
       const sportIds = sportsList.map((s: any) => s.id);
 
+      const todayStr = new Date().toISOString().split('T')[0];
+
       // Fetch related data
-      const [{ count: studentsCount }, { count: eventsCount }, { data: attData }, { data: playersData }] =
+      const [{ count: studentsCount }, { count: eventsCount }, { count: totalEventsCount }, { data: attData }, { data: playersData }, upcomingData] =
         await Promise.all([
           supabase.from('players').select('*', { count: 'exact', head: true }).in('sport_id', sportIds),
+          supabase.from('events').select('*', { count: 'exact', head: true }).in('sport_id', sportIds).gte('event_date', todayStr),
           supabase.from('events').select('*', { count: 'exact', head: true }).in('sport_id', sportIds),
           supabase.from('player_attendance').select('id, player_id, sport_id, date, status').in('sport_id', sportIds),
           supabase.from('players').select('id, full_name, sport_id').in('sport_id', sportIds),
+          supabase.from('events').select('id, name, event_date, sport_id').in('sport_id', sportIds).gte('event_date', todayStr).order('event_date', { ascending: true }).limit(5),
         ]);
 
       const attRecords = (attData || []) as any[];
       const players = (playersData || []) as any[];
+      const upcomingSource = (upcomingData?.data || []) as any[];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-      setStats({
-        sportsCount: sportsList.length,
-        studentsCount: studentsCount || 0,
-        eventsCount: eventsCount || 0,
-        totalSessions: attRecords.length,
-      });
-
-      // Build player name map
+      // ── Declare all processing variables (top-level to prevent TDZ) ──
       const playerNameMap = new Map<string, string>();
       players.forEach((p: any) => playerNameMap.set(p.id, p.full_name));
 
-      // Build sport name map
       const sportNameMap = new Map<string, string>();
       sportsList.forEach((s: any) => sportNameMap.set(s.id, s.name));
 
-      // Recent activity
-      const sorted = [...attRecords].sort((a: any, b: any) => b.date.localeCompare(a.date));
-      setRecentActivity(
-        sorted.slice(0, 10).map((r: any) => ({
-          id: r.id,
-          player_name: playerNameMap.get(r.player_id) || 'Unknown',
-          sport_name: sportNameMap.get(r.sport_id) || 'Unknown',
-          date: r.date,
-          status: r.status,
-        }))
-      );
-
-      // Top students
       const studentAgg = new Map<string, { present: number; absent: number; late: number }>();
+      const dayMap = new Map<string, { present: number; absent: number; late: number }>();
+      dayNames.forEach(d => dayMap.set(d, { present: 0, absent: 0, late: 0 }));
+
+      const topList: TopStudent[] = [];
+      const sorted = [...attRecords].sort((a: any, b: any) => b.date.localeCompare(a.date));
+      const recentActivityItems: RecentActivity[] = [];
+
+      let present = 0, absent = 0, late = 0;
+
+      // ── Process attendance records ──
       attRecords.forEach((r: any) => {
         if (!studentAgg.has(r.player_id)) {
           studentAgg.set(r.player_id, { present: 0, absent: 0, late: 0 });
@@ -137,28 +134,11 @@ export const CoachDashboard: React.FC = () => {
         if (r.status === 'present') e.present++;
         else if (r.status === 'absent') e.absent++;
         else if (r.status === 'late') e.late++;
-      });
 
-      const topList: TopStudent[] = [];
-      studentAgg.forEach((val, id) => {
-        const total = val.present + val.absent + val.late;
-        if (total > 0) {
-          topList.push({
-            name: playerNameMap.get(id) || 'Unknown',
-            ...val, total,
-            percentage: Math.round((val.present / total) * 100),
-          });
-        }
-      });
-      topList.sort((a, b) => b.percentage - a.percentage);
-      setTopStudents(topList.slice(0, 5));
+        if (r.status === 'present') present++;
+        else if (r.status === 'absent') absent++;
+        else if (r.status === 'late') late++;
 
-      // Attendance by day
-      const dayMap = new Map<string, { present: number; absent: number; late: number }>();
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      dayNames.forEach(d => dayMap.set(d, { present: 0, absent: 0, late: 0 }));
-
-      attRecords.forEach((r: any) => {
         const day = dayNames[new Date(r.date + 'T00:00:00').getDay()];
         const entry = dayMap.get(day)!;
         if (r.status === 'present') entry.present++;
@@ -166,15 +146,48 @@ export const CoachDashboard: React.FC = () => {
         else if (r.status === 'late') entry.late++;
       });
 
+      // ── Build top students list ──
+      studentAgg.forEach((val, id) => {
+        const total = val.present + val.absent + val.late;
+        if (total > 0) {
+          topList.push({
+            name: playerNameMap.get(id) || 'Unknown', ...val, total,
+            percentage: Math.round((val.present / total) * 100),
+          });
+        }
+      });
+      topList.sort((a, b) => b.percentage - a.percentage);
+
+      // ── Build recent activity ──
+      sorted.slice(0, 10).forEach((r: any) => {
+        recentActivityItems.push({
+          id: r.id,
+          player_name: playerNameMap.get(r.player_id) || 'Unknown',
+          sport_name: sportNameMap.get(r.sport_id) || 'Unknown',
+          date: r.date,
+          status: r.status,
+        });
+      });
+
+      // ── Set all state ──
+      setStats({
+        sportsCount: sportsList.length,
+        studentsCount: studentsCount || 0,
+        eventsCount: eventsCount || 0,
+        totalEventsCount: totalEventsCount || 0,
+        totalSessions: attRecords.length,
+      });
+
+      setUpcomingEvents(upcomingSource.map((e: any) => ({
+        id: e.id, name: e.name, event_date: e.event_date,
+        sport_name: sportNameMap.get(e.sport_id) || '',
+        sport_id: e.sport_id,
+      })));
+
+      setRecentActivity(recentActivityItems);
+      setTopStudents(topList.slice(0, 5));
       setAttendanceByDay(dayNames.map(d => ({ day: d, ...dayMap.get(d)! })));
 
-      // Status breakdown
-      let present = 0, absent = 0, late = 0;
-      attRecords.forEach((r: any) => {
-        if (r.status === 'present') present++;
-        else if (r.status === 'absent') absent++;
-        else if (r.status === 'late') late++;
-      });
       const total = present + absent + late;
       setStatusBreakdown(
         total > 0
@@ -198,7 +211,7 @@ export const CoachDashboard: React.FC = () => {
   const cards = [
     { label: 'Sports', value: stats.sportsCount, icon: '📊', color: 'violet' as const },
     { label: 'Students', value: stats.studentsCount, icon: '🏃', color: 'emerald' as const },
-    { label: 'Events', value: stats.eventsCount, icon: '📅', color: 'amber' as const },
+    { label: 'Upcoming Events', value: stats.eventsCount, icon: '📅', color: 'amber' as const, total: stats.totalEventsCount },
     { label: 'Sessions', value: stats.totalSessions, icon: '🎯', color: 'cyan' as const },
   ];
 
@@ -361,6 +374,26 @@ export const CoachDashboard: React.FC = () => {
             <EmptyState icon="🍩" message="No attendance data to show breakdown yet" />
           )}
         </div>
+      </div>
+
+      {/* Upcoming Events */}
+      <div className="glass-panel border border-slate-800/60 rounded-xl p-6">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">📅 Upcoming Events</h3>
+        {upcomingEvents.length > 0 ? (
+          <div className="space-y-2">
+            {upcomingEvents.map((evt) => (
+              <Link key={evt.id} to={`/coach/events/${evt.sport_id}`} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-700/30 transition-all">
+                <div>
+                  <p className="text-sm font-medium text-white">{evt.name}</p>
+                  {evt.sport_name && <p className="text-[10px] text-slate-500">{evt.sport_name}</p>}
+                </div>
+                <span className="text-[11px] text-slate-400">{evt.event_date}</span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon="📅" message="No upcoming events" />
+        )}
       </div>
 
       {/* Top Students */}

@@ -48,6 +48,8 @@ export const ManagePlayers: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [playerSearchQuery, setPlayerSearchQuery] = useState('');
+  const [playerSortOrder, setPlayerSortOrder] = useState<'asc' | 'desc'>('asc');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerSportId, setNewPlayerSportId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -490,72 +492,113 @@ export const ManagePlayers: React.FC = () => {
               </div>
             </div>
 
+            {/* Search & Sort */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={playerSearchQuery}
+                  onChange={(e) => setPlayerSearchQuery(e.target.value)}
+                  placeholder="🔍 Search students by name..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                />
+              </div>
+              <button
+                onClick={() => setPlayerSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded px-2.5 py-2 text-slate-300 transition-colors whitespace-nowrap"
+                title={playerSortOrder === 'asc' ? 'Sorted: A-Z' : 'Sorted: Z-A'}
+              >
+                {playerSortOrder === 'asc' ? '🔼 A-Z' : '🔽 Z-A'}
+              </button>
+            </div>
+
             {error && (
               <div className="p-3 rounded-lg bg-red-950/50 border border-red-500/30 text-red-300 text-sm mb-4">
                 {error}
               </div>
             )}
 
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
-              </div>
-            ) : players.length === 0 ? (
-              <div className="glass-panel rounded-xl p-8 text-center text-slate-400">
-                {urlSportId ? 'No students assigned to this sport yet.' : 'No unassigned students. Add a new student or assign existing ones.'}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {players.map((player) => (
-                  <div
-                    key={player.id}
-                    className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-800"
-                  >
-                    <button
-                      onClick={() => setSelectedPlayer(player)}
-                      className="flex-1 text-left"
-                    >
-                      <span className="text-sm font-medium text-slate-200">{player.full_name}</span>
-                      {player.sport_id && (
-                        <span className="ml-2 text-xs bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded">
-                          {getSportName(player.sport_id)}
-                        </span>
-                      )}
-                      {!player.sport_id && (
-                        <span className="ml-2 text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">
-                          Unassigned
-                        </span>
-                      )}
-                    </button>
-                    <div className="flex gap-2">
-                      {player.sport_id ? (
-                        <button
-                          onClick={() => handleUnassignPlayer(player.id)}
-                          className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded text-xs font-semibold transition-colors"
-                        >
-                          Unassign
-                        </button>
-                      ) : (
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) handleAssignPlayer(player.id, e.target.value);
-                          }}
-                          defaultValue=""
-                          className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-violet-500"
-                        >
-                          <option value="" disabled>Assign to...</option>
-                          {sports.map((sport) => (
-                            <option key={sport.id} value={sport.id}>
-                              {sport.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
+            {(() => {
+              const filtered = players
+                .filter(p => p.full_name.toLowerCase().includes(playerSearchQuery.toLowerCase()))
+                .sort((a, b) => {
+                  const cmp = a.full_name.localeCompare(b.full_name);
+                  return playerSortOrder === 'asc' ? cmp : -cmp;
+                });
+
+              if (loading) {
+                return (
+                  <div className="flex items-center justify-center h-64">
+                    <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              }
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="glass-panel rounded-xl p-8 text-center text-slate-400">
+                    {playerSearchQuery
+                      ? 'No students match your search.'
+                      : (urlSportId
+                        ? 'No students assigned to this sport yet.'
+                        : 'No unassigned students. Add a new student or assign existing ones.')}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {filtered.map((player) => (
+                    <div
+                      key={player.id}
+                      className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-800"
+                    >
+                      <button
+                        onClick={() => setSelectedPlayer(player)}
+                        className="flex-1 text-left"
+                      >
+                        <span className="text-sm font-medium text-slate-200">{player.full_name}</span>
+                        {player.sport_id && (
+                          <span className="ml-2 text-xs bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded">
+                            {getSportName(player.sport_id)}
+                          </span>
+                        )}
+                        {!player.sport_id && (
+                          <span className="ml-2 text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">
+                            Unassigned
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex gap-2">
+                        {player.sport_id ? (
+                          <button
+                            onClick={() => handleUnassignPlayer(player.id)}
+                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded text-xs font-semibold transition-colors"
+                          >
+                            Unassign
+                          </button>
+                        ) : (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) handleAssignPlayer(player.id, e.target.value);
+                            }}
+                            defaultValue=""
+                            className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-violet-500"
+                          >
+                            <option value="" disabled>Assign to...</option>
+                            {sports.map((sport) => (
+                              <option key={sport.id} value={sport.id}>
+                                {sport.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

@@ -16,6 +16,8 @@ export const GradeStudents: React.FC = () => {
   const [mobileView, setMobileView] = useState<'students' | 'grading'>('students');
   
   const [students, setStudents] = useState<any[]>([]);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [studentSortOrder, setStudentSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [assessmentData, setAssessmentData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -260,13 +262,49 @@ export const GradeStudents: React.FC = () => {
         {/* Students Sidebar/List - hidden on mobile when in grading view */}
         <div className={`w-full md:w-64 md:flex-shrink-0 ${mobileView === 'grading' ? 'hidden md:block' : ''}`}>
           <h3 className="text-slate-400 font-bold mb-4 uppercase text-xs md:block hidden">Students</h3>
+          {/* Search & Sort */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={studentSearchQuery}
+                onChange={(e) => setStudentSearchQuery(e.target.value)}
+                placeholder="🔍 Search students..."
+                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <button
+              onClick={() => setStudentSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+              className="flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded px-2 py-1.5 text-slate-300 transition-colors whitespace-nowrap"
+              title={studentSortOrder === 'asc' ? 'Sorted: A-Z' : 'Sorted: Z-A'}
+            >
+              {studentSortOrder === 'asc' ? '🔼 A-Z' : '🔽 Z-A'}
+            </button>
+          </div>
           <div className="space-y-2 overflow-y-auto max-h-full md:max-h-[calc(100vh-150px)] pr-2">
-            {students.map(s => (
-              <button key={s.id} onClick={() => { setSelectedStudent(s); setMobileView('grading'); }} 
-                className={`w-full text-left p-3 rounded-lg transition-all min-h-[44px] ${selectedStudent?.id === s.id ? 'bg-violet-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                {s.full_name}
-              </button>
-            ))}
+            {(() => {
+              const filtered = students
+                .filter(s => s.full_name.toLowerCase().includes(studentSearchQuery.toLowerCase()))
+                .sort((a, b) => {
+                  const cmp = a.full_name.localeCompare(b.full_name);
+                  return studentSortOrder === 'asc' ? cmp : -cmp;
+                });
+
+              if (filtered.length === 0) {
+                return (
+                  <p className="text-xs text-slate-500 italic px-2">
+                    {studentSearchQuery ? 'No students match your search.' : 'No students yet.'}
+                  </p>
+                );
+              }
+
+              return filtered.map(s => (
+                <button key={s.id} onClick={() => { setSelectedStudent(s); setMobileView('grading'); }} 
+                  className={`w-full text-left p-3 rounded-lg transition-all min-h-[44px] ${selectedStudent?.id === s.id ? 'bg-violet-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                  {s.full_name}
+                </button>
+              ));
+            })()}
           </div>
         </div>
 
