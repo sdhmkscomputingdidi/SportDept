@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import {
@@ -366,11 +366,8 @@ export const ManageEvents: React.FC = () => {
   }, [selectedSportId]);
 
   useEffect(() => {
-    let cancelled = false;
-
     if (selectedEvent) {
       fetchParticipants(selectedEvent.id);
-      return () => { cancelled = true; };
     } else {
       setParticipants([]);
     }

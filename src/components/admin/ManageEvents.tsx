@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import {
@@ -334,8 +334,6 @@ export const ManageEvents: React.FC = () => {
       });
     }
 
-    // We can't cancel in-flight Supabase requests, but we can discard their results
-    const origFetch = fetchStatsData;
     return () => { cancelled = true; };
   }, [statsModalPlayerId, statsMonths, statsYear]);
 
@@ -359,18 +357,8 @@ export const ManageEvents: React.FC = () => {
   }, [selectedSportId]);
 
   useEffect(() => {
-    let cancelled = false;
-
     if (selectedEvent) {
       fetchParticipants(selectedEvent.id);
-      // Using a timeout to check if the effect re-ran before fetch completes
-      const timer = setTimeout(() => {
-        if (cancelled) setParticipants([]);
-      }, 0);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
     } else {
       setParticipants([]);
     }

@@ -27,10 +27,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
   if (!supabaseUrl) {
     res.statusCode = 500;
-    res.end(JSON.stringify({ error: 'Server misconfigured: missing SUPABASE_URL' }));
+    res.end(JSON.stringify({ error: 'Server misconfigured: missing VITE_SUPABASE_URL' }));
     return;
   }
 
