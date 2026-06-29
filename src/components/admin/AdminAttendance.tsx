@@ -277,22 +277,35 @@ export const AdminAttendance: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSports();
+    let cancelled = false;
+    fetchSports().then(() => { if (cancelled) setSports([]); });
+    return () => { cancelled = true; };
   }, [urlSportId]);
 
   useEffect(() => {
+    let cancelled = false;
     if (selectedSportId) {
-      fetchTrainingInfo();
+      fetchTrainingInfo().then(() => { if (cancelled) setHolidaysOnWeek([]); });
     }
+    return () => { cancelled = true; };
   }, [selectedSportId, weekOffset]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (selectedSportId) {
       setCoaches([]);
       setRecords({});
       setSelectedCoachIndex(0);
-      fetchCoaches();
+      fetchCoaches().then(() => {
+        if (cancelled) {
+          setCoaches([]);
+          setRecords({});
+        }
+      });
     }
+
+    return () => { cancelled = true; };
   }, [selectedSportId, attendanceDate]);
 
   // ── Handlers ─────────────────────────────────────────────

@@ -21,6 +21,7 @@ import { AdminAttendance } from './components/admin/AdminAttendance';
 import { TrainingSchedule } from './components/admin/TrainingSchedule';
 import { ManageHolidays } from './components/admin/ManageHolidays';
 import type { Session } from '@supabase/supabase-js';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -96,6 +97,7 @@ function App() {
   }
 
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <Routes>
         {/* Auth routes */}
@@ -151,6 +153,7 @@ function App() {
         />
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

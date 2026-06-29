@@ -210,10 +210,21 @@ export const GradeStudents: React.FC = () => {
 
   // Fetch stats data whenever modal state changes
   useEffect(() => {
+    let cancelled = false;
+
     if (statsModalOpen) {
-      fetchStatsData();
+      fetchStatsData().then(() => {
+        if (cancelled) {
+          setStatsRadarData([]);
+          setStatsLineData([]);
+          setStatsCategories([]);
+          setStatsLoading(false);
+        }
+      });
     }
-  }, [statsModalOpen, selectedStudent?.id, statsYear, statsMonths]);
+
+    return () => { cancelled = true; };
+  }, [statsModalOpen, selectedStudent?.id, statsYear, JSON.stringify(statsMonths)]);
 
   const categoryAverages = useMemo(() => {
     return assessmentData.map(cat => {

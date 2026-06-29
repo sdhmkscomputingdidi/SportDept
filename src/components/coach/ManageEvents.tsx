@@ -330,26 +330,51 @@ export const ManageEvents: React.FC = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     if (statsModalPlayerId) {
-      fetchStatsData();
+      fetchStatsData().then(() => {
+        if (cancelled) {
+          setStatsRadarData([]);
+          setStatsLineData([]);
+          setStatsCategories([]);
+          setStatsLoading(false);
+        }
+      });
     }
+
+    return () => { cancelled = true; };
   }, [statsModalPlayerId, statsMonths, statsYear]);
 
   useEffect(() => {
-    if (selectedSportId) {
-      fetchEvents();
-      fetchPlayers();
-      fetchPlayerStats();
+    let cancelled = false;
+
+    async function loadData() {
+      if (cancelled) return;
+      await fetchEvents();
+      if (cancelled) return;
+      await fetchPlayers();
+      if (cancelled) return;
+      await fetchPlayerStats();
     }
+
+    if (selectedSportId) {
+      loadData();
+    }
+
+    return () => { cancelled = true; };
   }, [selectedSportId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (selectedEvent) {
       fetchParticipants(selectedEvent.id);
+      return () => { cancelled = true; };
     } else {
       setParticipants([]);
     }
-  }, [selectedEvent]);
+  }, [selectedEvent?.id]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();

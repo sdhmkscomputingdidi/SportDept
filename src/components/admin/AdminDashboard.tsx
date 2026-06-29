@@ -91,8 +91,8 @@ export const AdminDashboard: React.FC = () => {
           `)
           .order('date', { ascending: false })
           .limit(10),
-        supabase.from('coach_attendance').select('coach_id, date, status'),
-        supabase.from('player_attendance').select('player_id, date, status'),
+        supabase.from('coach_attendance').select('coach_id, date, status, coach_name:profiles!coach_id(full_name)'),
+        supabase.from('player_attendance').select('player_id, date, status, player_info:players!player_id(full_name)'),
       ]);
 
       setStats({
@@ -114,21 +114,16 @@ export const AdminDashboard: React.FC = () => {
       }));
       setRecentActivity(activity);
 
-      // Coach attendance aggregation
+      // Coach attendance aggregation (names from joined query — eliminates N+1)
       const coachAttRecords = (coachAttData?.data || []) as any[];
       const coachAgg = new Map<string, { present: number; absent: number; late: number }>();
       const coachNameMap = new Map<string, string>();
 
-      const allCoachIds = [...new Set(coachAttRecords.map((r: any) => r.coach_id))];
-      if (allCoachIds.length > 0) {
-        const { data: coachProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', allCoachIds);
-        (coachProfiles || []).forEach((p: any) => coachNameMap.set(p.id, p.full_name));
-      }
-
       coachAttRecords.forEach((r: any) => {
+        // Extract name from the join
+        if (!coachNameMap.has(r.coach_id)) {
+          coachNameMap.set(r.coach_id, r.coach_name?.full_name || 'Unknown');
+        }
         if (!coachAgg.has(r.coach_id)) {
           coachAgg.set(r.coach_id, { present: 0, absent: 0, late: 0 });
         }
@@ -153,21 +148,16 @@ export const AdminDashboard: React.FC = () => {
       topCoachList.sort((a, b) => b.percentage - a.percentage);
       setTopCoaches(topCoachList.slice(0, 5));
 
-      // Student attendance aggregation
+      // Student attendance aggregation (names from joined query — eliminates N+1)
       const playerAttRecords = (playerAttData?.data || []) as any[];
       const playerAgg = new Map<string, { present: number; absent: number; late: number }>();
       const playerNameMap = new Map<string, string>();
 
-      const allPlayerIds = [...new Set(playerAttRecords.map((r: any) => r.player_id))];
-      if (allPlayerIds.length > 0) {
-        const { data: playerProfiles } = await supabase
-          .from('players')
-          .select('id, full_name')
-          .in('id', allPlayerIds);
-        (playerProfiles || []).forEach((p: any) => playerNameMap.set(p.id, p.full_name));
-      }
-
       playerAttRecords.forEach((r: any) => {
+        // Extract name from the join
+        if (!playerNameMap.has(r.player_id)) {
+          playerNameMap.set(r.player_id, r.player_info?.full_name || 'Unknown');
+        }
         if (!playerAgg.has(r.player_id)) {
           playerAgg.set(r.player_id, { present: 0, absent: 0, late: 0 });
         }

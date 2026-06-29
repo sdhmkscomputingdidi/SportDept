@@ -268,20 +268,32 @@ export const CoachAttendance: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchAssignedSports();
+    let cancelled = false;
+    fetchAssignedSports().then(() => { if (cancelled) setAssignedSports([]); });
+    return () => { cancelled = true; };
   }, [urlSportId]);
 
   useEffect(() => {
+    let cancelled = false;
     if (selectedSportId) {
-      fetchPlayers();
-      fetchTrainingInfo();
+      fetchPlayers().then(() => {
+        if (cancelled) setPlayers([]);
+      });
+      fetchTrainingInfo().then(() => {
+        if (cancelled) setHolidaysOnWeek([]);
+      });
     }
+    return () => { cancelled = true; };
   }, [selectedSportId, weekOffset]);
 
   useEffect(() => {
+    let cancelled = false;
     if (selectedSportId && players.length > 0) {
-      fetchAttendance();
+      fetchAttendance().then(() => {
+        if (cancelled) setRecords({});
+      });
     }
+    return () => { cancelled = true; };
   }, [selectedSportId, attendanceDate, players.length]);
 
   // ── Handlers ──

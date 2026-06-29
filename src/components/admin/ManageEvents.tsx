@@ -320,26 +320,61 @@ export const ManageEvents: React.FC = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     if (statsModalPlayerId) {
-      fetchStatsData();
+      fetchStatsData().then(() => {
+        // fetchStatsData sets state internally; cancelled check is for the outer effect
+        if (cancelled) {
+          setStatsRadarData([]);
+          setStatsLineData([]);
+          setStatsCategories([]);
+          setStatsLoading(false);
+        }
+      });
     }
+
+    // We can't cancel in-flight Supabase requests, but we can discard their results
+    const origFetch = fetchStatsData;
+    return () => { cancelled = true; };
   }, [statsModalPlayerId, statsMonths, statsYear]);
 
   useEffect(() => {
-    if (selectedSportId) {
-      fetchEvents();
-      fetchPlayers();
-      fetchPlayerStats();
+    let cancelled = false;
+
+    async function loadData() {
+      if (cancelled) return;
+      await fetchEvents();
+      if (cancelled) return;
+      await fetchPlayers();
+      if (cancelled) return;
+      await fetchPlayerStats();
     }
+
+    if (selectedSportId) {
+      loadData();
+    }
+
+    return () => { cancelled = true; };
   }, [selectedSportId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (selectedEvent) {
       fetchParticipants(selectedEvent.id);
+      // Using a timeout to check if the effect re-ran before fetch completes
+      const timer = setTimeout(() => {
+        if (cancelled) setParticipants([]);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
     } else {
       setParticipants([]);
     }
-  }, [selectedEvent]);
+  }, [selectedEvent?.id]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -86,11 +86,14 @@ export const ManagePlayers: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedPlayer) {
+      setPlayerEvents([]);
+      return;
+    }
+
     const fetchPlayerEvents = async () => {
-      if (!selectedPlayer) {
-        setPlayerEvents([]);
-        return;
-      }
       const { data } = await supabase
         .from('players_events')
         .select(`
@@ -107,6 +110,8 @@ export const ManagePlayers: React.FC = () => {
         `)
         .eq('player_id', selectedPlayer.id);
 
+      if (cancelled) return;
+
       const normalized = (data || []).map((item: any) => ({
         joined_at: item.joined_at,
         event: item.events ? {
@@ -122,31 +127,41 @@ export const ManagePlayers: React.FC = () => {
         const dateB = b.event?.event_date || '';
         return new Date(dateB).getTime() - new Date(dateA).getTime();
       });
-      setPlayerEvents(normalized);
+      if (!cancelled) setPlayerEvents(normalized);
     };
 
     fetchPlayerEvents();
-  }, [selectedPlayer]);
+    return () => { cancelled = true; };
+  }, [selectedPlayer?.id]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!selectedPlayer || selectedMonths.length === 0) {
       setRadarData([]);
+      setLineChartData([]);
       return;
     }
 
-    const fetchRadarData = async () => {
+    const fetchAllChartData = async () => {
+      const sportId = selectedPlayer.sport_id;
+      const playerId = selectedPlayer.id;
+
       const { data: catData } = await supabase
         .from('assessment_categories')
         .select(`name, skills(id, name)`)
-        .eq('sport_id', selectedPlayer.sport_id);
+        .eq('sport_id', sportId);
+      if (cancelled) return;
 
       const { data: scoreData } = await supabase
         .from('player_assessments')
         .select('skill_id, score, assessment_month, assessment_year')
-        .eq('player_id', selectedPlayer.id)
+        .eq('player_id', playerId)
         .or(`and(assessment_year.eq.${selectedYear},assessment_month.gte.7),and(assessment_year.eq.${selectedYear + 1},assessment_month.lte.6)`)
         .in('assessment_month', selectedMonths);
+      if (cancelled) return;
 
+      // Build radar data
       const formatted = catData?.map(cat => {
         const entry: any = { category: cat.name };
         selectedMonths.forEach(m => {
@@ -159,33 +174,20 @@ export const ManagePlayers: React.FC = () => {
         });
         return entry;
       });
-      setRadarData(formatted || []);
-    };
-    fetchRadarData();
-    
-    const fetchLineChartData = async () => {
-      if (!selectedPlayer) return;
-      const { data: catData } = await supabase
-        .from('assessment_categories')
-        .select(`id, name`)
-        .eq('sport_id', selectedPlayer.sport_id);
 
+      if (!cancelled) setRadarData(formatted || []);
+
+      // Build line chart data
       const { data: skillsData } = await supabase
         .from('skills')
         .select('id, category_id');
+      if (cancelled) return;
 
       const skillToCategory: Record<string, string> = {};
       skillsData?.forEach((sk: any) => {
         const cat = catData?.find((c: any) => c.id === sk.category_id);
         if (cat) skillToCategory[sk.id] = cat.name;
       });
-
-      const { data: scoreData } = await supabase
-        .from('player_assessments')
-        .select('skill_id, score, assessment_month')
-        .eq('player_id', selectedPlayer.id)
-        .or(`and(assessment_year.eq.${selectedYear},assessment_month.gte.7),and(assessment_year.eq.${selectedYear + 1},assessment_month.lte.6)`)
-        .order('assessment_month', { ascending: true });
 
       const monthMap: Record<number, any> = {};
       scoreData?.forEach((score: any) => {
@@ -217,11 +219,14 @@ export const ManagePlayers: React.FC = () => {
           return row;
         })
         .sort((a: any, b: any) => getSeasonMonthOrder(a.monthNum) - getSeasonMonthOrder(b.monthNum));
-      setLineChartData(lineArr);
+
+      if (!cancelled) setLineChartData(lineArr);
     };
 
-    fetchLineChartData();
-  }, [selectedPlayer, selectedMonths, selectedYear]);
+    fetchAllChartData();
+
+    return () => { cancelled = true; };
+  }, [selectedPlayer?.id, selectedPlayer?.sport_id, JSON.stringify(selectedMonths), selectedYear]);
 
   const toggleMonth = (m: number) => {
     setSelectedMonths(prev => prev.includes(m) ? prev.filter(i => i !== m) : [...prev, m]);

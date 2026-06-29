@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabaseClient';
-
-const adminClient = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false } }
-); 
 
 interface CoachProfile {
   id: string;
@@ -18,6 +11,18 @@ interface CoachProfile {
 interface Sport {
   id: string;
   name: string;
+}
+
+// ── Admin auth API helper (Vercel serverless function) ──
+async function callAdminAuth(payload: Record<string, unknown>): Promise<any> {
+  const res = await fetch('/api/admin-auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Server error (${res.status})`);
+  return data;
 }
 
 const ManageCoaches: React.FC = () => {
@@ -124,27 +129,20 @@ const ManageCoaches: React.FC = () => {
         throw new Error('Password must be at least 6 characters long.');
       }
 
-      const { data, error: signUpError } = await adminClient.auth.signUp({
+      await callAdminAuth({
+        action: 'signup',
         email: email.trim(),
         password: password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            role: registerRole,
-          },
-        },
+        fullName: fullName.trim(),
+        role: registerRole,
       });
 
-      if (signUpError) throw signUpError;
-
-      if (data?.user) {
-        setSuccess(`Coach ${fullName} registered successfully!`);
-        setFullName('');
-        setEmail('');
-        setPassword('');
-        setRegisterRole('coach');
-        await loadData();
-      }
+      setSuccess(`Coach ${fullName} registered successfully!`);
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setRegisterRole('coach');
+      await loadData();
     } catch (err: any) {
       console.error('Registration error details:', err);
       setError(err.message || 'An error occurred while creating the coach profile.');
@@ -204,25 +202,25 @@ const ManageCoaches: React.FC = () => {
     setEditLoading(true);
     setError(null);
     try {
-      const { error: profileError } = await adminClient
+      // Update profile (uses RLS — head_coach can update any profile)
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ full_name: editFullName.trim(), role: editRole })
         .eq('id', selectedCoach.id);
 
       if (profileError) throw profileError;
 
-      const updateData: any = {};
-      if (editEmail.trim()) updateData.email = editEmail.trim();
-      if (editPassword.trim()) {
-        if (editPassword.length < 6) {
+      // Auth updates (email/password) go through the API
+      if (editEmail.trim() || editPassword.trim()) {
+        if (editPassword.trim() && editPassword.length < 6) {
           throw new Error('Password must be at least 6 characters.');
         }
-        updateData.password = editPassword;
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        const { error: authError } = await adminClient.auth.admin.updateUserById(selectedCoach.id, updateData);
-        if (authError) throw authError;
+        await callAdminAuth({
+          action: 'update',
+          userId: selectedCoach.id,
+          email: editEmail.trim() || undefined,
+          password: editPassword.trim() || undefined,
+        });
       }
 
       setSuccess('Coach details updated successfully.');
@@ -266,10 +264,9 @@ const ManageCoaches: React.FC = () => {
       if (profileError) throw profileError;
 
       try {
-        const { error: authError } = await adminClient.auth.admin.deleteUser(coachId);
-        if (authError) console.warn('Auth cleanup warning:', authError.message);
+        await callAdminAuth({ action: 'delete', userId: coachId });
       } catch (authWarn: any) {
-        console.warn('Auth user may not exist:', authWarn.message);
+        console.warn('Auth user deletion warning:', authWarn.message);
       }
 
       setSuccess(`Coach ${deleteTarget.full_name} deleted successfully.`);
