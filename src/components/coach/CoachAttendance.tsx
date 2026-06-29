@@ -139,6 +139,7 @@ export const CoachAttendance: React.FC = () => {
   // ── Recap state ──
   const [recapOpen, setRecapOpen] = useState(false);
   const [recapData, setRecapData] = useState<StudentAttendanceSummary[]>([]);
+  const [recapDetailedRecords, setRecapDetailedRecords] = useState<any[]>([]);
   const [recapLoading, setRecapLoading] = useState(false);
   const [recapError, setRecapError] = useState<string | null>(null);
 
@@ -484,23 +485,27 @@ export const CoachAttendance: React.FC = () => {
 
       if (playersList.length === 0) {
         setRecapData([]);
+        setRecapDetailedRecords([]);
         setRecapLoading(false);
         return;
       }
 
-      // Fetch aggregated attendance for all players
       const playerIds = playersList.map(p => p.id);
-      const { data: attData, error: attErr } = await supabase
+
+      // Fetch detailed attendance with dates (for the matrix CSV)
+      const { data: detailedAttData, error: detailedErr } = await supabase
         .from('player_attendance')
-        .select('player_id, status')
+        .select('player_id, date, status')
         .eq('sport_id', selectedSportId)
-        .in('player_id', playerIds);
+        .in('player_id', playerIds)
+        .order('date', { ascending: true });
 
-      if (attErr) throw attErr;
+      if (detailedErr) throw detailedErr;
+      setRecapDetailedRecords(detailedAttData || []);
 
-      // Aggregate per player
+      // Aggregate per player for the summary display
       const aggMap = new Map<string, { present: number; absent: number; late: number }>();
-      (attData || []).forEach((rec: any) => {
+      (detailedAttData || []).forEach((rec: any) => {
         if (!aggMap.has(rec.player_id)) {
           aggMap.set(rec.player_id, { present: 0, absent: 0, late: 0 });
         }
@@ -536,6 +541,7 @@ export const CoachAttendance: React.FC = () => {
   const closeRecapDrawer = () => {
     setRecapOpen(false);
     setRecapData([]);
+    setRecapDetailedRecords([]);
     setRecapError(null);
   };
 
@@ -940,6 +946,7 @@ export const CoachAttendance: React.FC = () => {
         title="👥 Students Recap"
         subtitle={assignedSports.find(s => s.id === selectedSportId)?.name || ''}
         data={recapData}
+        detailedRecords={recapDetailedRecords}
         loading={recapLoading}
         error={recapError}
         sportName={assignedSports.find(s => s.id === selectedSportId)?.name || 'Unknown'}

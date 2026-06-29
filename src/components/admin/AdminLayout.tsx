@@ -10,6 +10,7 @@ export const AdminLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sports, setSports] = useState<{ id: string; name: string }[]>([]);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [assessmentSubOpen, setAssessmentSubOpen] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -216,7 +217,76 @@ export const AdminLayout: React.FC = () => {
               🏠 Dashboard
             </NavLink>
             <NavSection label="📋 Attendance" id="attendance" basePath="/admin/attendance" />
-            <NavSection label="Grade Students" id="grade" basePath="/admin/grade" />
+            <div>
+              <button
+                onClick={() => setExpandedMenu(expandedMenu === 'assessment' ? null : 'assessment')}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-900/50"
+              >
+                📋 Assessment <span>{expandedMenu === 'assessment' ? '▼' : '▶'}</span>
+              </button>
+              {expandedMenu === 'assessment' && (
+                <div className="ml-4 space-y-1">
+                  {/* Manage Criteria sub-menu */}
+                  <div>
+                    <button
+                      onClick={() => setAssessmentSubOpen(assessmentSubOpen === 'criteria' ? null : 'criteria')}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-900/50"
+                    >
+                      📋 Manage Criteria <span>{assessmentSubOpen === 'criteria' ? '▼' : '▶'}</span>
+                    </button>
+                    {assessmentSubOpen === 'criteria' && (
+                      <div className="ml-3 space-y-0.5">
+                        {sports.map((sport) => (
+                          <NavLink
+                            key={sport.id}
+                            to={`/admin/criteria/${sport.id}`}
+                            onClick={() => setSidebarOpen(false)}
+                            className={({ isActive }) =>
+                              `block py-1.5 pl-4 text-xs transition-colors ${
+                                isActive
+                                  ? 'text-violet-300 font-semibold'
+                                  : 'text-slate-500 hover:text-violet-400'
+                              }`
+                            }
+                          >
+                            {sport.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Grade Students sub-menu */}
+                  <div>
+                    <button
+                      onClick={() => setAssessmentSubOpen(assessmentSubOpen === 'grade' ? null : 'grade')}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-900/50"
+                    >
+                      Grade Students <span>{assessmentSubOpen === 'grade' ? '▼' : '▶'}</span>
+                    </button>
+                    {assessmentSubOpen === 'grade' && (
+                      <div className="ml-3 space-y-0.5">
+                        {sports.map((sport) => (
+                          <NavLink
+                            key={sport.id}
+                            to={`/admin/grade/${sport.id}`}
+                            onClick={() => setSidebarOpen(false)}
+                            className={({ isActive }) =>
+                              `block py-1.5 pl-4 text-xs transition-colors ${
+                                isActive
+                                  ? 'text-violet-300 font-semibold'
+                                  : 'text-slate-500 hover:text-violet-400'
+                              }`
+                            }
+                          >
+                            {sport.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <NavLink
               to="/admin/coaches"
               className={({ isActive }) =>
@@ -229,7 +299,6 @@ export const AdminLayout: React.FC = () => {
             >
               👔 Manage Coaches
             </NavLink>
-            <NavSection label="📋 Manage Criteria" id="criteria" basePath="/admin/criteria" />
             <NavSection label="📅 Manage Events" id="events" basePath="/admin/events" />
             <NavLink
               to="/admin/sports"
@@ -355,7 +424,21 @@ export const AdminLayout: React.FC = () => {
                   🏠 Dashboard
                 </NavLink>
                 <NavSectionMobile label="📋 Attendance" id="attendance" basePath="/admin/attendance" closeSidebar={() => setSidebarOpen(false)} />
-                <NavSectionMobile label="Grade Students" id="grade" basePath="/admin/grade" closeSidebar={() => setSidebarOpen(false)} />
+                {/* Assessment sub-menu */}
+                <div>
+                  <button
+                    onClick={() => setExpandedMenu(expandedMenu === 'assessment-mobile' ? null : 'assessment-mobile')}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-900/50"
+                  >
+                    📋 Assessment <span>{expandedMenu === 'assessment-mobile' ? '▼' : '▶'}</span>
+                  </button>
+                  {expandedMenu === 'assessment-mobile' && (
+                    <div className="ml-4 space-y-1">
+                      <NavSectionMobile label="📋 Manage Criteria" id="criteria" basePath="/admin/criteria" closeSidebar={() => setSidebarOpen(false)} />
+                      <NavSectionMobile label="Grade Students" id="grade" basePath="/admin/grade" closeSidebar={() => setSidebarOpen(false)} />
+                    </div>
+                  )}
+                </div>
                 <NavLink
                   to="/admin/coaches"
                   onClick={() => setSidebarOpen(false)}
@@ -369,7 +452,6 @@ export const AdminLayout: React.FC = () => {
                 >
                   👔 Manage Coaches
                 </NavLink>
-                <NavSectionMobile label="📋 Manage Criteria" id="criteria" basePath="/admin/criteria" closeSidebar={() => setSidebarOpen(false)} />
                 <NavSectionMobile label="📅 Manage Events" id="events" basePath="/admin/events" closeSidebar={() => setSidebarOpen(false)} />
                 <NavLink
                   to="/admin/sports"

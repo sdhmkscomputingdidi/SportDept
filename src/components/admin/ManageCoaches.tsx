@@ -204,7 +204,7 @@ const ManageCoaches: React.FC = () => {
     setEditLoading(true);
     setError(null);
     try {
-      const { error: profileError } = await supabase
+      const { error: profileError } = await adminClient
         .from('profiles')
         .update({ full_name: editFullName.trim(), role: editRole })
         .eq('id', selectedCoach.id);

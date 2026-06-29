@@ -144,6 +144,7 @@ export const AdminAttendance: React.FC = () => {
   const [studentsCoachId, setStudentsCoachId] = useState<string | null>(null);
   const [studentsCoachName, setStudentsCoachName] = useState('');
   const [studentsData, setStudentsData] = useState<StudentAttendanceSummary[]>([]);
+  const [studentsDetailedRecords, setStudentsDetailedRecords] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState<string | null>(null);
 
@@ -438,6 +439,40 @@ export const AdminAttendance: React.FC = () => {
     setExpandedNotes(new Set());
   };
 
+  const exportCoachReportCsv = () => {
+    if (reportRecords.length === 0) return;
+
+    const rows = [
+      ['Date', 'Day', 'Status', 'Notes'],
+      ...reportRecords.map(rec => {
+        const dateObj = new Date(rec.date + 'T00:00:00');
+        const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const monthDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const statusLabel = { present: 'Present', absent: 'Absent', late: 'Late' }[rec.status];
+        return [
+          monthDate,
+          dayLabel,
+          statusLabel,
+          rec.notes || '',
+        ];
+      }),
+    ];
+
+    const csvContent = '\uFEFF' + rows
+      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = reportCoachName.replace(/\s+/g, '-').toLowerCase();
+    const sportName = sports.find(s => s.id === selectedSportId)?.name || 'unknown';
+    a.download = `coach-attendance-${safeName}-${sportName.toLowerCase()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const toggleNotes = (recordId: string) => {
     setExpandedNotes(prev => {
       const next = new Set(prev);
@@ -472,23 +507,27 @@ export const AdminAttendance: React.FC = () => {
 
       if (players.length === 0) {
         setStudentsData([]);
+        setStudentsDetailedRecords([]);
         setStudentsLoading(false);
         return;
       }
 
-      // Fetch aggregated attendance for all players in this sport
       const playerIds = players.map(p => p.id);
-      const { data: attData, error: attErr } = await supabase
-        .from('player_attendance')
-        .select('player_id, status')
-        .eq('sport_id', selectedSportId)
-        .in('player_id', playerIds);
 
-      if (attErr) throw attErr;
+      // Fetch detailed attendance with dates (for the matrix CSV)
+      const { data: detailedAttData, error: detailedErr } = await supabase
+        .from('player_attendance')
+        .select('player_id, date, status')
+        .eq('sport_id', selectedSportId)
+        .in('player_id', playerIds)
+        .order('date', { ascending: true });
+
+      if (detailedErr) throw detailedErr;
+      setStudentsDetailedRecords(detailedAttData || []);
 
       // Aggregate attendance per player
       const aggMap = new Map<string, { present: number; absent: number; late: number }>();
-      (attData || []).forEach((rec: any) => {
+      (detailedAttData || []).forEach((rec: any) => {
         if (!aggMap.has(rec.player_id)) {
           aggMap.set(rec.player_id, { present: 0, absent: 0, late: 0 });
         }
@@ -525,6 +564,7 @@ export const AdminAttendance: React.FC = () => {
   const closeStudentsDrawer = () => {
     setStudentsCoachId(null);
     setStudentsData([]);
+    setStudentsDetailedRecords([]);
     setStudentsError(null);
   };
 
@@ -871,12 +911,25 @@ export const AdminAttendance: React.FC = () => {
                   )}
                 </p>
               </div>
-              <button
-                onClick={closeReport}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all text-lg"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                {reportRecords.length > 0 && (
+                  <button
+                    onClick={exportCoachReportCsv}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    CSV
+                  </button>
+                )}
+                <button
+                  onClick={closeReport}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all text-lg"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Drawer Body */}
@@ -1018,6 +1071,7 @@ export const AdminAttendance: React.FC = () => {
         title="👥 Students Attendance"
         subtitle={`Coach: ${studentsCoachName}${selectedSportId ? ` • ${sports.find(s => s.id === selectedSportId)?.name || ''}` : ''}`}
         data={studentsData}
+        detailedRecords={studentsDetailedRecords}
         loading={studentsLoading}
         error={studentsError}
         sportName={sports.find(s => s.id === selectedSportId)?.name || 'Unknown'}

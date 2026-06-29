@@ -276,7 +276,8 @@ export const ManagePlayers: React.FC = () => {
           <div key={p.id} className="flex items-center gap-2 mb-2">
             <button onClick={() => { setSelectedPlayer(p); setMobileView('stats'); }} 
               className={`flex-1 text-left p-3 rounded transition-colors min-h-[44px] ${selectedPlayer?.id === p.id ? 'bg-violet-600' : 'bg-slate-800 hover:bg-slate-700'}`}>
-              {p.full_name}
+              <span className="block text-sm leading-tight">{p.full_name}</span>
+              <span className="block text-[9px] text-violet-400/70 font-medium mt-0.5">📊 View Stats</span>
             </button>
             <button onClick={() => setEditPlayer(p)} className="text-xs bg-slate-700 px-2 py-3 rounded hover:bg-slate-600 min-h-[44px]">Edit</button>
           </div>

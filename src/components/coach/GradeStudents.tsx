@@ -1,6 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
+} from 'recharts';
+
+const COLORS = ['#8b5cf6', '#f472b6', '#34d399', '#fbbf24', '#3b82f6', '#ef4444', '#06b6d4', '#d946ef', '#f97316', '#22c55e', '#64748b', '#0ea5e9'];
 
 export const GradeStudents: React.FC = () => {
   const { sportId } = useParams<{ sportId: string }>();
@@ -13,6 +20,16 @@ export const GradeStudents: React.FC = () => {
   const [assessmentData, setAssessmentData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sportName, setSportName] = useState<string>('');
+
+  // Stats modal state
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
+  const [statsChartType, setStatsChartType] = useState<'radar' | 'line'>('radar');
+  const [statsMonths, setStatsMonths] = useState<number[]>([7]);
+  const [statsYear, setStatsYear] = useState(new Date().getFullYear());
+  const [statsCategories, setStatsCategories] = useState<any[]>([]);
+  const [statsRadarData, setStatsRadarData] = useState<any[]>([]);
+  const [statsLineData, setStatsLineData] = useState<any[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const [selectedMonth, setSelectedMonth] = useState(7);
   const seasonMonths = [7,8,9,10,11,12,1,2,3,4,5,6];
@@ -96,6 +113,108 @@ export const GradeStudents: React.FC = () => {
     if (error) console.error("Upsert failed:", error.message);
   };
 
+  // ── Stats Modal Helpers & Data Fetching ──
+
+  const getStatsMonthLabel = (monthNum: number) => {
+    const year = monthNum >= 7 ? statsYear : statsYear + 1;
+    return `${months[monthNum - 1]} ${year}`;
+  };
+
+  const getSeasonMonthOrder = (monthNum: number) => {
+    return monthNum >= 7 ? monthNum - 7 : monthNum + 5;
+  };
+
+  const toggleStatsMonth = (m: number) => {
+    setStatsMonths(prev => prev.includes(m) ? prev.filter(i => i !== m) : [...prev, m]);
+  };
+
+  const fetchStatsData = async () => {
+    if (!selectedStudent || !sportId) return;
+    setStatsLoading(true);
+
+    // Fetch categories with skills
+    const { data: catData } = await supabase
+      .from('assessment_categories')
+      .select(`id, name, skills(id, name)`)
+      .eq('sport_id', sportId);
+
+    // Fetch scores for selected months
+    const { data: scoreData } = await supabase
+      .from('player_assessments')
+      .select('skill_id, score, assessment_month')
+      .eq('player_id', selectedStudent.id)
+      .or(`and(assessment_year.eq.${statsYear},assessment_month.gte.7),and(assessment_year.eq.${statsYear + 1},assessment_month.lte.6)`)
+      .in('assessment_month', statsMonths);
+
+    setStatsCategories(catData || []);
+
+    // Build radar data — one row per category, columns per month
+    const radarFormatted = catData?.map(cat => {
+      const entry: any = { category: cat.name };
+      statsMonths.forEach(m => {
+        const monthSkills = (cat.skills || []).map((s: any) => ({
+          ...s,
+          score: scoreData?.find(sd => sd.skill_id === s.id && sd.assessment_month === m)?.score || 0
+        }));
+        const avg = monthSkills.length > 0
+          ? monthSkills.reduce((sum: number, s: any) => sum + s.score, 0) / monthSkills.length
+          : 0;
+        entry[`month_${m}`] = parseFloat(avg.toFixed(1));
+      });
+      return entry;
+    }) || [];
+    setStatsRadarData(radarFormatted);
+
+    // Build line chart data — one row per month, columns per category
+    const skillToCategory: Record<string, string> = {};
+    catData?.forEach((cat: any) => {
+      (cat.skills || []).forEach((s: any) => {
+        skillToCategory[s.id] = cat.name;
+      });
+    });
+
+    const monthMap: Record<number, any> = {};
+    scoreData?.forEach((score: any) => {
+      const catName = skillToCategory[score.skill_id];
+      if (!catName) return;
+      const m = score.assessment_month;
+      if (!monthMap[m]) {
+        monthMap[m] = { month: getStatsMonthLabel(m), monthNum: m };
+      }
+      if (!monthMap[m][catName]) {
+        monthMap[m][catName] = [];
+      }
+      monthMap[m][catName].push(score.score);
+    });
+
+    const lineArr = Object.values(monthMap)
+      .map((entry: any) => {
+        const row: any = { month: entry.month, monthNum: entry.monthNum };
+        catData?.forEach((cat: any) => {
+          const scores = entry[cat.name];
+          if (scores && scores.length > 0) {
+            row[cat.name] = parseFloat(
+              (scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1)
+            );
+          } else {
+            row[cat.name] = undefined;
+          }
+        });
+        return row;
+      })
+      .sort((a: any, b: any) => getSeasonMonthOrder(a.monthNum) - getSeasonMonthOrder(b.monthNum));
+
+    setStatsLineData(lineArr);
+    setStatsLoading(false);
+  };
+
+  // Fetch stats data whenever modal state changes
+  useEffect(() => {
+    if (statsModalOpen) {
+      fetchStatsData();
+    }
+  }, [statsModalOpen, selectedStudent?.id, statsYear, statsMonths]);
+
   const categoryAverages = useMemo(() => {
     return assessmentData.map(cat => {
       const total = cat.skills.reduce((sum: number, s: any) => sum + s.score, 0);
@@ -157,7 +276,7 @@ export const GradeStudents: React.FC = () => {
                     <option key={s.id} value={s.id}>{s.full_name}</option>
                   ))}
                 </select>
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
                   <select 
                     value={selectedMonth} 
                     onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
@@ -174,7 +293,16 @@ export const GradeStudents: React.FC = () => {
                     <option value={selectedYear}>{selectedYear}–{selectedYear + 1}</option>
                     <option value={selectedYear + 1}>{selectedYear + 1}–{selectedYear + 2}</option>
                   </select>
-                  <span className="text-xs text-slate-400 ml-auto">{sportName}</span>
+                  <button
+                    onClick={() => setStatsModalOpen(true)}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-xs transition-all shadow-lg shadow-violet-600/10 flex items-center gap-1.5 min-h-[40px]"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    See Statistic
+                  </button>
+                  <span className="text-xs text-slate-400 ml-auto self-center">{sportName}</span>
                 </div>
               </div>
               {loading ? <p className="p-4 text-center">Loading...</p> : assessmentData.map((cat, idx) => (
@@ -205,6 +333,157 @@ export const GradeStudents: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Stats Modal ── */}
+      {statsModalOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setStatsModalOpen(false)}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-lg font-bold text-white">📊 Progress Statistics</h3>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    {selectedStudent?.full_name || ''}
+                    <span className="text-slate-500 ml-2">• {sportName}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => setStatsModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* Controls */}
+                <div className="flex flex-wrap gap-3 mb-6 bg-slate-950 p-4 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">View:</span>
+                    <select
+                      value={statsChartType}
+                      onChange={(e) => setStatsChartType(e.target.value as 'radar' | 'line')}
+                      className="bg-slate-800 p-1.5 rounded border border-slate-700 outline-none text-xs text-white"
+                    >
+                      <option value="radar">Radar</option>
+                      <option value="line">Line Progress</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Season Year:</span>
+                    <select
+                      value={statsYear}
+                      onChange={(e) => setStatsYear(parseInt(e.target.value))}
+                      className="bg-slate-800 p-1.5 rounded border border-slate-700 outline-none text-xs text-white"
+                    >
+                      <option value={statsYear - 1}>{statsYear - 1}–{statsYear}</option>
+                      <option value={statsYear}>{statsYear}–{statsYear + 1}</option>
+                      <option value={statsYear + 1}>{statsYear + 1}–{statsYear + 2}</option>
+                    </select>
+                  </div>
+                  <span className="text-xs text-slate-400 self-center">Compare Months:</span>
+                  {seasonMonths.map(m => (
+                    <label
+                      key={m}
+                      className={`flex items-center gap-1 cursor-pointer px-2 py-1 rounded text-[10px] ${
+                        statsMonths.includes(m) ? 'bg-violet-600' : 'bg-slate-800'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={statsMonths.includes(m)}
+                        onChange={() => toggleStatsMonth(m)}
+                      />
+                      {getStatsMonthLabel(m)}
+                    </label>
+                  ))}
+                </div>
+
+                {/* Charts */}
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
+                  </div>
+                ) : statsRadarData.length > 0 || statsLineData.length > 0 ? (
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-5">
+                    <div className="w-full min-h-[300px] h-[350px] md:h-[450px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        {statsChartType === 'radar' ? (
+                          <RadarChart data={statsRadarData}>
+                            <PolarGrid stroke="#475569" />
+                            <PolarAngleAxis dataKey="category" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                            <PolarRadiusAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                            {statsMonths.map((m, idx) => (
+                              <Radar
+                                key={m}
+                                name={getStatsMonthLabel(m)}
+                                dataKey={`month_${m}`}
+                                stroke={COLORS[idx % COLORS.length]}
+                                fill={COLORS[idx % COLORS.length]}
+                                fillOpacity={0.15}
+                              />
+                            ))}
+                            <Legend wrapperStyle={{ paddingTop: '16px' }} />
+                          </RadarChart>
+                        ) : (
+                          <LineChart data={statsLineData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 11 }} angle={-45} textAnchor="end" height={70} />
+                            <YAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                              labelStyle={{ color: '#f1f5f9' }}
+                            />
+                            <Legend wrapperStyle={{ paddingTop: '16px' }} />
+                            {statsCategories.map((cat: any, idx: number) => (
+                              <Line
+                                key={cat.id}
+                                type="monotone"
+                                dataKey={cat.name}
+                                stroke={COLORS[idx % COLORS.length]}
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                                activeDot={{ r: 6 }}
+                              />
+                            ))}
+                          </LineChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-8 text-center">
+                    <p className="text-xs text-slate-500 italic">No assessment history recorded yet.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  {selectedStudent?.full_name || ''} — {sportName}
+                </span>
+                <button
+                  onClick={() => setStatsModalOpen(false)}
+                  className="text-xs text-violet-400 hover:text-violet-300 font-semibold transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

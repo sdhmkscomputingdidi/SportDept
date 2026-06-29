@@ -9,6 +9,8 @@ export const CoachLayout: React.FC = () => {
   const [userName, setUserName] = useState<string>('Coach');
   const [assignedSports, setAssignedSports] = useState<any[]>([]);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [assessmentSubOpen, setAssessmentSubOpen] = useState<string | null>(null);
+  const [assessmentSubOpenMobile, setAssessmentSubOpenMobile] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
@@ -144,8 +146,65 @@ export const CoachLayout: React.FC = () => {
                 🏠 Dashboard
               </NavLink>
               <NavSection label="📋 Attendance" id="attendance" />
-              <NavSection label="Grade Students" id="grade" />
-              <NavSection label="Manage Criteria" id="criteria" />
+              {/* Assessment sub-menu */}
+              <div>
+                <button
+                  onClick={() => setExpandedMenu(expandedMenu === 'assessment-mobile' ? null : 'assessment-mobile')}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-900/50"
+                >
+                  📋 Assessment <span>{expandedMenu === 'assessment-mobile' ? '▼' : '▶'}</span>
+                </button>
+                {expandedMenu === 'assessment-mobile' && (
+                  <div className="ml-4 space-y-1">
+                    {/* Manage Criteria sub-menu */}
+                    <div>
+                      <button
+                        onClick={() => setAssessmentSubOpenMobile(assessmentSubOpenMobile === 'criteria' ? null : 'criteria')}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-900/50"
+                      >
+                        Manage Criteria <span>{assessmentSubOpenMobile === 'criteria' ? '▼' : '▶'}</span>
+                      </button>
+                      {assessmentSubOpenMobile === 'criteria' && (
+                        <div className="ml-3 space-y-0.5">
+                          {assignedSports.map((sport) => (
+                            <NavLink
+                              key={sport.id}
+                              to={`/coach/criteria/${sport.id}`}
+                              onClick={closeSidebar}
+                              className="block py-1.5 pl-4 text-xs text-slate-500 hover:text-violet-400"
+                            >
+                              {sport.name}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Grade Students sub-menu */}
+                    <div>
+                      <button
+                        onClick={() => setAssessmentSubOpenMobile(assessmentSubOpenMobile === 'grade' ? null : 'grade')}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-900/50"
+                      >
+                        Grade Students <span>{assessmentSubOpenMobile === 'grade' ? '▼' : '▶'}</span>
+                      </button>
+                      {assessmentSubOpenMobile === 'grade' && (
+                        <div className="ml-3 space-y-0.5">
+                          {assignedSports.map((sport) => (
+                            <NavLink
+                              key={sport.id}
+                              to={`/coach/grade/${sport.id}`}
+                              onClick={closeSidebar}
+                              className="block py-1.5 pl-4 text-xs text-slate-500 hover:text-violet-400"
+                            >
+                              {sport.name}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <NavSection label="Manage Events" id="events" />
               <NavSection label="Manage Students" id="players" />
             </nav>
@@ -203,8 +262,64 @@ export const CoachLayout: React.FC = () => {
               🏠 Dashboard
             </NavLink>
             <NavSection label="📋 Attendance" id="attendance" />
-            <NavSection label="Grade Students" id="grade" />
-            <NavSection label="Manage Criteria" id="criteria" />
+            <div>
+              <button
+                onClick={() => setExpandedMenu(expandedMenu === 'assessment' ? null : 'assessment')}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-900/50"
+              >
+                📋 Assessment <span>{expandedMenu === 'assessment' ? '▼' : '▶'}</span>
+              </button>
+              {expandedMenu === 'assessment' && (
+                <div className="ml-4 space-y-1">
+                  {/* Manage Criteria sub-menu */}
+                  <div>
+                    <button
+                      onClick={() => setAssessmentSubOpen(assessmentSubOpen === 'criteria' ? null : 'criteria')}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-900/50"
+                    >
+                      Manage Criteria <span>{assessmentSubOpen === 'criteria' ? '▼' : '▶'}</span>
+                    </button>
+                    {assessmentSubOpen === 'criteria' && (
+                      <div className="ml-3 space-y-0.5">
+                        {assignedSports.map((sport) => (
+                          <NavLink
+                            key={sport.id}
+                            to={`/coach/criteria/${sport.id}`}
+                            onClick={closeSidebar}
+                            className="block py-1.5 pl-4 text-xs text-slate-500 hover:text-violet-400"
+                          >
+                            {sport.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Grade Students sub-menu */}
+                  <div>
+                    <button
+                      onClick={() => setAssessmentSubOpen(assessmentSubOpen === 'grade' ? null : 'grade')}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-900/50"
+                    >
+                      Grade Students <span>{assessmentSubOpen === 'grade' ? '▼' : '▶'}</span>
+                    </button>
+                    {assessmentSubOpen === 'grade' && (
+                      <div className="ml-3 space-y-0.5">
+                        {assignedSports.map((sport) => (
+                          <NavLink
+                            key={sport.id}
+                            to={`/coach/grade/${sport.id}`}
+                            onClick={closeSidebar}
+                            className="block py-1.5 pl-4 text-xs text-slate-500 hover:text-violet-400"
+                          >
+                            {sport.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <NavSection label="Manage Events" id="events" />
             <NavSection label="Manage Students" id="players" />
           </nav>
