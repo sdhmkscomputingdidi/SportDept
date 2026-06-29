@@ -12,7 +12,12 @@ export const AdminLayout: React.FC = () => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [assessmentSubOpen, setAssessmentSubOpen] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'default');
+  const [theme, setTheme] = useState<string>(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'grey') return 'warm';
+    if (stored === 'dark') return 'deep';
+    return stored || 'default';
+  });
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   useEffect(() => {
@@ -323,8 +328,8 @@ export const AdminLayout: React.FC = () => {
             {([
               { value: 'default', label: '🌙', title: 'Default' },
               { value: 'light', label: '☀️', title: 'Light' },
-              { value: 'grey', label: '🌫️', title: 'Grey' },
-              { value: 'dark', label: '🌑', title: 'Dark' },
+              { value: 'warm', label: '🌅', title: 'Warm' },
+              { value: 'deep', label: '🌌', title: 'Deep' },
             ] as const).map((t) => (
               <button
                 key={t.value}
@@ -474,8 +479,8 @@ export const AdminLayout: React.FC = () => {
                   {([
                     { value: 'default', label: '🌙', title: 'Default' },
                     { value: 'light', label: '☀️', title: 'Light' },
-                    { value: 'grey', label: '🌫️', title: 'Grey' },
-                    { value: 'dark', label: '🌑', title: 'Dark' },
+                  { value: 'warm', label: '🌅', title: 'Warm' },
+                  { value: 'deep', label: '🌌', title: 'Deep' },
                   ] as const).map((t) => (
                     <button
                       key={t.value}

@@ -45,84 +45,63 @@ body {
 
 /* ============================================
    THEME SYSTEM
+   Tailwind v4 uses CSS custom properties for colors.
+   Overriding `--color-{name}-{shade}` at runtime
+   updates ALL utility classes that reference them.
    ============================================ */
 
-/* DEFAULT (violet dark) — no overrides needed, uses existing base */
+/* ── DEFAULT (violet dark) ──
+   Base styles as set by Tailwind — no overrides needed.
+   Slate backgrounds, white text, violet accents. */
 
-/* LIGHT THEME */
-[data-theme="light"] body {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+/* ── LIGHT (clean light mode) ──
+   Swap slate shades so deep backgrounds become light,
+   and light text becomes dark. Accent shifts to indigo. */
+[data-theme="light"] {
+  --color-slate-950: #f8fafc;
+  --color-slate-900: #ffffff;
+  --color-slate-800: #f1f5f9;
+  --color-slate-700: #e2e8f0;
+  --color-slate-600: #cbd5e1;
+  --color-slate-500: #94a3b8;
+  --color-slate-400: #64748b;
+  --color-slate-300: #475569;
+  --color-slate-200: #334155;
+  --color-slate-100: #1e293b;
+  --color-slate-50: #0f172a;
+  --color-white: #0f172a;
+  --color-black: #ffffff;
+  --color-violet-700: #4f46e5;
+  --color-violet-600: #6366f1;
+  --color-violet-500: #7c3aed;
+  --color-violet-400: #818cf8;
+  --color-violet-300: #a5b4fc;
+  --color-violet-200: #c7d2fe;
+  --color-emerald-600: #059669;
+  --color-emerald-500: #10b981;
+  --color-emerald-400: #34d399;
+  --color-emerald-300: #6ee7b7;
+  --color-red-600: #dc2626;
+  --color-red-500: #ef4444;
+  --color-red-400: #f87171;
+  --color-red-300: #fca5a5;
+  --color-amber-600: #d97706;
+  --color-amber-500: #f59e0b;
+  --color-amber-400: #fbbf24;
+  --color-amber-300: #fcd34d;
+  --color-sky-600: #0284c7;
+  --color-sky-500: #0ea5e9;
+  --color-sky-400: #38bdf8;
+  --color-sky-300: #7dd3fc;
 }
-[data-theme="light"] .bg-slate-950,
-[data-theme="light"] .bg-slate-900,
-[data-theme="light"] .bg-slate-800,
-[data-theme="light"] .bg-slate-800\/50,
-[data-theme="light"] .bg-slate-900\/30,
-[data-theme="light"] .bg-slate-900\/40,
-[data-theme="light"] .bg-slate-900\/50,
-[data-theme="light"] .bg-slate-950\/50,
-[data-theme="light"] .bg-slate-950\/60,
-[data-theme="light"] .bg-slate-900\/60 {
-  background-color: #f8fafc !important;
-}
-[data-theme="light"] .bg-white {
-  background-color: #ffffff !important;
-}
-[data-theme="light"] .text-white,
-[data-theme="light"] .text-slate-100,
-[data-theme="light"] .text-slate-200,
-[data-theme="light"] .text-slate-300,
-[data-theme="light"] .text-slate-400 {
-  color: #0f172a !important;
-}
-[data-theme="light"] .text-slate-500,
-[data-theme="light"] .text-slate-600 {
-  color: #475569 !important;
-}
-[data-theme="light"] .border-slate-800,
-[data-theme="light"] .border-slate-700,
-[data-theme="light"] .border-slate-900,
-[data-theme="light"] .border-slate-800\/80,
-[data-theme="light"] .border-slate-800\/60,
-[data-theme="light"] .border-slate-800\/50 {
-  border-color: rgba(0,0,0,0.1) !important;
-}
-[data-theme="light"] .bg-red-500\/10,
-[data-theme="light"] .bg-violet-500\/10,
-[data-theme="light"] .bg-blue-600 {
-  background-color: rgba(0,0,0,0.04) !important;
-}
-[data-theme="light"] .text-red-400,
-[data-theme="light"] .text-violet-400,
-[data-theme="light"] .text-violet-300,
-[data-theme="light"] .text-blue-400 {
-  color: #6366f1 !important;
-}
-[data-theme="light"] .bg-violet-600,
-[data-theme="light"] .bg-violet-500,
-[data-theme="light"] .bg-blue-600,
-[data-theme="light"] .bg-blue-500 {
-  background-color: #6366f1 !important;
-}
-[data-theme="light"] .bg-violet-600\/15,
-[data-theme="light"] .bg-violet-600\/25,
-[data-theme="light"] .bg-violet-600\/35 {
-  background-color: rgba(99,102,241,0.15) !important;
-}
-[data-theme="light"] .hover\:bg-violet-500:hover,
-[data-theme="light"] .hover\:bg-blue-500:hover {
-  background-color: #4f46e5 !important;
-}
+
 [data-theme="light"] .glass-panel {
-  background: rgba(255, 255, 255, 0.8) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 [data-theme="light"] .glass-card {
-  background: rgba(241, 245, 249, 0.6) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }
 [data-theme="light"] ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.05);
@@ -134,53 +113,118 @@ body {
   background: rgba(0, 0, 0, 0.25);
 }
 
-/* GREY THEME (greyscale dark) */
-[data-theme="grey"] body {
-  background-color: #1e293b;
-  color: #e2e8f0;
-}
-[data-theme="grey"] .glass-panel {
-  background: rgba(30, 41, 59, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-}
-[data-theme="grey"] .glass-card {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(6px);
-}
-[data-theme="grey"] ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-}
-[data-theme="grey"] ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-}
-[data-theme="grey"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35);
+/* ── WARM (sepia dark — replaces 'grey') ──
+   Warm amber/copper tones on a dark brown base.
+   Easier on the eyes for extended reading sessions. */
+[data-theme="warm"] {
+  --color-slate-950: #1c1613;
+  --color-slate-900: #2a221d;
+  --color-slate-800: #3d322b;
+  --color-slate-700: #4d4037;
+  --color-slate-600: #5c4e44;
+  --color-slate-500: #7a6b5f;
+  --color-slate-400: #a09084;
+  --color-slate-300: #c4b5a8;
+  --color-slate-200: #dbcec2;
+  --color-slate-100: #ede3d9;
+  --color-slate-50: #f5efe9;
+  --color-white: #f5efe9;
+  --color-violet-700: #b45309;
+  --color-violet-600: #d97706;
+  --color-violet-500: #f59e0b;
+  --color-violet-400: #fbbf24;
+  --color-violet-300: #fcd34d;
+  --color-violet-200: #fde68a;
+  --color-emerald-600: #65a30d;
+  --color-emerald-500: #84cc16;
+  --color-emerald-400: #a3e635;
+  --color-emerald-300: #bef264;
+  --color-red-600: #b91c1c;
+  --color-red-500: #dc2626;
+  --color-red-400: #ef4444;
+  --color-red-300: #fca5a5;
+  --color-amber-600: #7c3aed;
+  --color-amber-500: #8b5cf6;
+  --color-amber-400: #a78bfa;
+  --color-amber-300: #c4b5fd;
+  --color-sky-600: #d97706;
+  --color-sky-500: #f59e0b;
+  --color-sky-400: #fbbf24;
+  --color-sky-300: #fcd34d;
 }
 
-/* DARK THEME (pure dark, minimal glass) */
-[data-theme="dark"] body {
-  background-color: #020617;
-  color: #f8fafc;
+[data-theme="warm"] .glass-panel {
+  background: rgba(42, 34, 29, 0.85);
+  border-color: rgba(255, 255, 255, 0.06);
 }
-[data-theme="dark"] .glass-panel {
-  background: rgba(2, 6, 23, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(4px);
+[data-theme="warm"] .glass-card {
+  background: rgba(28, 22, 19, 0.7);
+  border-color: rgba(255, 255, 255, 0.04);
 }
-[data-theme="dark"] .glass-card {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(2px);
+[data-theme="warm"] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
 }
-[data-theme="dark"] ::-webkit-scrollbar-track {
+[data-theme="warm"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+[data-theme="warm"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+/* ── DEEP (rich navy — replaces 'dark') ──
+   Deep blue-navy base with cyan/teal accents.
+   Richer and more comfortable than pure black. */
+[data-theme="deep"] {
+  --color-slate-950: #0a0e1a;
+  --color-slate-900: #111827;
+  --color-slate-800: #1c2538;
+  --color-slate-700: #283548;
+  --color-slate-600: #374151;
+  --color-slate-500: #4b5563;
+  --color-slate-400: #6b7280;
+  --color-slate-300: #93a3af;
+  --color-slate-200: #c4cdd5;
+  --color-slate-100: #e2e8f0;
+  --color-slate-50: #f1f5f9;
+  --color-white: #f1f5f9;
+  --color-violet-700: #0891b2;
+  --color-violet-600: #06b6d4;
+  --color-violet-500: #22d3ee;
+  --color-violet-400: #67e8f9;
+  --color-violet-300: #a5f3fc;
+  --color-violet-200: #cffafe;
+  --color-emerald-600: #0d9488;
+  --color-emerald-500: #14b8a6;
+  --color-emerald-400: #2dd4bf;
+  --color-emerald-300: #5eead4;
+  --color-red-600: #e11d48;
+  --color-red-500: #f43f5e;
+  --color-red-400: #fb7185;
+  --color-red-300: #fda4af;
+  --color-amber-600: #d97706;
+  --color-amber-500: #f59e0b;
+  --color-amber-400: #fbbf24;
+  --color-amber-300: #fcd34d;
+  --color-sky-600: #0284c7;
+  --color-sky-500: #0ea5e9;
+  --color-sky-400: #38bdf8;
+  --color-sky-300: #7dd3fc;
+}
+
+[data-theme="deep"] .glass-panel {
+  background: rgba(17, 24, 39, 0.9);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+[data-theme="deep"] .glass-card {
+  background: rgba(10, 14, 26, 0.7);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+[data-theme="deep"] ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.4);
 }
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
+[data-theme="deep"] ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
 }
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+[data-theme="deep"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
 

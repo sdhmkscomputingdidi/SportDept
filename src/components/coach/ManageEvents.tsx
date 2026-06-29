@@ -1,6 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
+} from 'recharts';
+
+const STATS_COLORS = ['#8b5cf6', '#f472b6', '#34d399', '#fbbf24', '#3b82f6', '#ef4444', '#06b6d4', '#d946ef', '#f97316', '#22c55e', '#64748b', '#0ea5e9'];
 
 interface SportEvent {
   id: string;
@@ -50,6 +57,22 @@ export const ManageEvents: React.FC = () => {
   const [editDate, setEditDate] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Player stats data
+  const [playerStatsMap, setPlayerStatsMap] = useState<Record<string, { attendance_pct: number; event_count: number }>>({});
+
+  // Stats modal state
+  const [statsModalPlayerId, setStatsModalPlayerId] = useState<string | null>(null);
+  const [statsModalPlayerName, setStatsModalPlayerName] = useState('');
+  const [statsChartType, setStatsChartType] = useState<'radar' | 'line'>('radar');
+  const [statsMonths, setStatsMonths] = useState<number[]>([7]);
+  const [statsYear, setStatsYear] = useState(new Date().getFullYear());
+  const [statsCategories, setStatsCategories] = useState<any[]>([]);
+  const [statsRadarData, setStatsRadarData] = useState<any[]>([]);
+  const [statsLineData, setStatsLineData] = useState<any[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const fetchAssignedSports = async () => {
     setError(null);
@@ -160,10 +183,163 @@ export const ManageEvents: React.FC = () => {
     fetchAssignedSports();
   }, [urlSportId]);
 
+  // ── Player Stats Helpers ──
+  const seasonMonths = [7,8,9,10,11,12,1,2,3,4,5,6];
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const fetchPlayerStats = async () => {
+    if (!selectedSportId) return;
+    try {
+      const { data: playersList } = await supabase
+        .from('players')
+        .select('id')
+        .eq('sport_id', selectedSportId);
+
+      if (!playersList || playersList.length === 0) {
+        setPlayerStatsMap({});
+        return;
+      }
+
+      const playerIds = playersList.map(p => p.id);
+
+      const { data: attData } = await supabase
+        .from('player_attendance')
+        .select('player_id, status')
+        .eq('sport_id', selectedSportId)
+        .in('player_id', playerIds);
+
+      const { data: eventData } = await supabase
+        .from('players_events')
+        .select('player_id')
+        .in('player_id', playerIds);
+
+      const attAgg: Record<string, { present: number; total: number }> = {};
+      (attData || []).forEach((r: any) => {
+        if (!attAgg[r.player_id]) {
+          attAgg[r.player_id] = { present: 0, total: 0 };
+        }
+        attAgg[r.player_id].total++;
+        if (r.status === 'present') attAgg[r.player_id].present++;
+      });
+
+      const eventCount: Record<string, number> = {};
+      (eventData || []).forEach((r: any) => {
+        eventCount[r.player_id] = (eventCount[r.player_id] || 0) + 1;
+      });
+
+      const stats: Record<string, { attendance_pct: number; event_count: number }> = {};
+      playerIds.forEach(pid => {
+        const a = attAgg[pid];
+        stats[pid] = {
+          attendance_pct: a && a.total > 0 ? Math.round((a.present / a.total) * 100) : 0,
+          event_count: eventCount[pid] || 0,
+        };
+      });
+
+      setPlayerStatsMap(stats);
+    } catch (err) {
+      console.warn('Failed to fetch player stats:', err);
+    }
+  };
+
+  // ── Stats Modal Helpers ──
+  const getStatsMonthLabel = (monthNum: number) => {
+    const year = monthNum >= 7 ? statsYear : statsYear + 1;
+    return `${months[monthNum - 1]} ${year}`;
+  };
+
+  const getSeasonMonthOrder = (monthNum: number) => {
+    return monthNum >= 7 ? monthNum - 7 : monthNum + 5;
+  };
+
+  const toggleStatsMonth = (m: number) => {
+    setStatsMonths(prev => prev.includes(m) ? prev.filter(i => i !== m) : [...prev, m]);
+  };
+
+  const fetchStatsData = async () => {
+    if (!statsModalPlayerId || !selectedSportId) return;
+    setStatsLoading(true);
+
+    const { data: catData } = await supabase
+      .from('assessment_categories')
+      .select(`id, name, skills(id, name)`)
+      .eq('sport_id', selectedSportId);
+
+    const { data: scoreData } = await supabase
+      .from('player_assessments')
+      .select('skill_id, score, assessment_month')
+      .eq('player_id', statsModalPlayerId)
+      .or(`and(assessment_year.eq.${statsYear},assessment_month.gte.7),and(assessment_year.eq.${statsYear + 1},assessment_month.lte.6)`)
+      .in('assessment_month', statsMonths);
+
+    setStatsCategories(catData || []);
+
+    const radarFormatted = catData?.map(cat => {
+      const entry: any = { category: cat.name };
+      statsMonths.forEach(m => {
+        const monthSkills = (cat.skills || []).map((s: any) => ({
+          ...s,
+          score: scoreData?.find(sd => sd.skill_id === s.id && sd.assessment_month === m)?.score || 0
+        }));
+        const avg = monthSkills.length > 0
+          ? monthSkills.reduce((sum: number, s: any) => sum + s.score, 0) / monthSkills.length
+          : 0;
+        entry[`month_${m}`] = parseFloat(avg.toFixed(1));
+      });
+      return entry;
+    }) || [];
+    setStatsRadarData(radarFormatted);
+
+    const skillToCategory: Record<string, string> = {};
+    catData?.forEach((cat: any) => {
+      (cat.skills || []).forEach((s: any) => {
+        skillToCategory[s.id] = cat.name;
+      });
+    });
+
+    const monthMap: Record<number, any> = {};
+    scoreData?.forEach((score: any) => {
+      const catName = skillToCategory[score.skill_id];
+      if (!catName) return;
+      const m = score.assessment_month;
+      if (!monthMap[m]) {
+        monthMap[m] = { month: getStatsMonthLabel(m), monthNum: m };
+      }
+      if (!monthMap[m][catName]) {
+        monthMap[m][catName] = [];
+      }
+      monthMap[m][catName].push(score.score);
+    });
+
+    const lineArr = Object.values(monthMap)
+      .map((entry: any) => {
+        const row: any = { month: entry.month, monthNum: entry.monthNum };
+        catData?.forEach((cat: any) => {
+          const scores = entry[cat.name];
+          if (scores && scores.length > 0) {
+            row[cat.name] = parseFloat((scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1));
+          } else {
+            row[cat.name] = undefined;
+          }
+        });
+        return row;
+      })
+      .sort((a: any, b: any) => getSeasonMonthOrder(a.monthNum) - getSeasonMonthOrder(b.monthNum));
+    setStatsLineData(lineArr);
+    setStatsLoading(false);
+  };
+
+  useEffect(() => {
+    if (statsModalPlayerId) {
+      fetchStatsData();
+    }
+  }, [statsModalPlayerId, statsMonths, statsYear]);
+
   useEffect(() => {
     if (selectedSportId) {
       fetchEvents();
       fetchPlayers();
+      fetchPlayerStats();
     }
   }, [selectedSportId]);
 
@@ -295,7 +471,14 @@ export const ManageEvents: React.FC = () => {
   };
 
   const participantPlayerIds = new Set(participants.map((p) => p.player_id));
-  const availablePlayers = players.filter((p) => !participantPlayerIds.has(p.id));
+  const filteredParticipants = participants.filter(p =>
+    p.players?.[0]?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredAvailablePlayers = players
+    .filter((p) => !participantPlayerIds.has(p.id))
+    .filter(p => p.full_name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const availablePlayersUse = searchQuery ? filteredAvailablePlayers : players.filter((p) => !participantPlayerIds.has(p.id));
+  const participantsUse = searchQuery ? filteredParticipants : participants;
 
   return (
     <div className="flex flex-col md:flex-row md:h-screen bg-slate-950 text-white">
@@ -445,6 +628,17 @@ export const ManageEvents: React.FC = () => {
               </div>
             )}
 
+            {/* Search */}
+            <div className="mb-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="🔍 Search players by name..."
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+              />
+            </div>
+
             <div className="space-y-6">
               {/* Participants */}
               <div>
@@ -452,21 +646,45 @@ export const ManageEvents: React.FC = () => {
                   Participants
                 </h3>
                 <div className="space-y-2">
-                  {participants.length === 0 ? (
-                    <p className="text-sm text-slate-500 italic">No participants selected yet.</p>
+                  {participantsUse.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic">{searchQuery ? 'No participants match your search.' : 'No participants selected yet.'}</p>
                   ) : (
-                    participants.map((part) => (
+                    participantsUse.map((part) => (
                       <div
                         key={part.player_id}
                         className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700"
                       >
-                        <span className="text-sm font-medium text-slate-200">
-                          {part.players?.[0]?.full_name || 'Unknown Player'}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-slate-200 block truncate">
+                            {part.players?.[0]?.full_name || 'Unknown Player'}
+                          </span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-[10px] font-semibold ${
+                              (playerStatsMap[part.player_id]?.attendance_pct || 0) >= 80 ? 'text-emerald-400' :
+                              (playerStatsMap[part.player_id]?.attendance_pct || 0) >= 60 ? 'text-amber-400' :
+                              'text-red-400'
+                            }`}>
+                              📊 {playerStatsMap[part.player_id]?.attendance_pct || 0}% attend.
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              🏆 {playerStatsMap[part.player_id]?.event_count || 0} events
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStatsModalPlayerId(part.player_id);
+                                setStatsModalPlayerName(part.players?.[0]?.full_name || 'Player');
+                              }}
+                              className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold underline"
+                            >
+                              View Stats
+                            </button>
+                          </div>
+                        </div>
                         <button
                           onClick={() => handleToggleParticipant(part.player_id)}
                           disabled={formLoading}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded transition-colors disabled:opacity-50"
+                          className="flex-shrink-0 px-3 py-1 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded transition-colors disabled:opacity-50"
                         >
                           Selected
                         </button>
@@ -482,21 +700,45 @@ export const ManageEvents: React.FC = () => {
                   All Players in Sport
                 </h3>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {availablePlayers.length === 0 ? (
-                    <p className="text-sm text-slate-500 italic">All players are already participants or no players found.</p>
+                  {availablePlayersUse.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic">{searchQuery ? 'No players match your search.' : 'All players are already participants or no players found.'}</p>
                   ) : (
-                    availablePlayers.map((player) => (
+                    availablePlayersUse.map((player) => (
                       <div
                         key={player.id}
                         className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-800"
                       >
-                        <span className="text-sm font-medium text-slate-300">
-                          {player.full_name}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-slate-300 block truncate">
+                            {player.full_name}
+                          </span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-[10px] font-semibold ${
+                              (playerStatsMap[player.id]?.attendance_pct || 0) >= 80 ? 'text-emerald-400' :
+                              (playerStatsMap[player.id]?.attendance_pct || 0) >= 60 ? 'text-amber-400' :
+                              'text-red-400'
+                            }`}>
+                              📊 {playerStatsMap[player.id]?.attendance_pct || 0}% attend.
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              🏆 {playerStatsMap[player.id]?.event_count || 0} events
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStatsModalPlayerId(player.id);
+                                setStatsModalPlayerName(player.full_name);
+                              }}
+                              className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold underline"
+                            >
+                              View Stats
+                            </button>
+                          </div>
+                        </div>
                         <button
                           onClick={() => handleToggleParticipant(player.id)}
                           disabled={formLoading}
-                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold rounded transition-colors disabled:opacity-50"
+                          className="flex-shrink-0 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold rounded transition-colors disabled:opacity-50"
                         >
                           Assign
                         </button>
@@ -515,6 +757,101 @@ export const ManageEvents: React.FC = () => {
       </div>
 
       </div>
+
+      {/* ── Stats Modal ── */}
+      {statsModalPlayerId && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setStatsModalPlayerId(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-lg font-bold text-white">📊 Progress Statistics</h3>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    {statsModalPlayerName}
+                    <span className="text-slate-500 ml-2">• {sports.find(s => s.id === selectedSportId)?.name || ''}</span>
+                  </p>
+                </div>
+                <button onClick={() => setStatsModalPlayerId(null)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all text-lg">✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="flex flex-wrap gap-3 mb-6 bg-slate-950 p-4 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">View:</span>
+                    <select value={statsChartType} onChange={(e) => setStatsChartType(e.target.value as 'radar' | 'line')}
+                      className="bg-slate-800 p-1.5 rounded border border-slate-700 outline-none text-xs text-white">
+                      <option value="radar">Radar</option>
+                      <option value="line">Line Progress</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Season Year:</span>
+                    <select value={statsYear} onChange={(e) => setStatsYear(parseInt(e.target.value))}
+                      className="bg-slate-800 p-1.5 rounded border border-slate-700 outline-none text-xs text-white">
+                      <option value={statsYear - 1}>{statsYear - 1}–{statsYear}</option>
+                      <option value={statsYear}>{statsYear}–{statsYear + 1}</option>
+                      <option value={statsYear + 1}>{statsYear + 1}–{statsYear + 2}</option>
+                    </select>
+                  </div>
+                  <span className="text-xs text-slate-400 self-center">Compare Months:</span>
+                  {seasonMonths.map(m => (
+                    <label key={m} className={`flex items-center gap-1 cursor-pointer px-2 py-1 rounded text-[10px] ${statsMonths.includes(m) ? 'bg-violet-600' : 'bg-slate-800'}`}>
+                      <input type="checkbox" className="hidden" checked={statsMonths.includes(m)} onChange={() => toggleStatsMonth(m)} />
+                      {getStatsMonthLabel(m)}
+                    </label>
+                  ))}
+                </div>
+
+                {statsLoading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
+                  </div>
+                ) : statsRadarData.length > 0 || statsLineData.length > 0 ? (
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-5">
+                    <div className="w-full min-h-[300px] h-[350px] md:h-[450px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        {statsChartType === 'radar' ? (
+                          <RadarChart data={statsRadarData}>
+                            <PolarGrid stroke="#475569" />
+                            <PolarAngleAxis dataKey="category" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                            <PolarRadiusAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                            {statsMonths.map((m, idx) => (
+                              <Radar key={m} name={getStatsMonthLabel(m)} dataKey={`month_${m}`}
+                                stroke={STATS_COLORS[idx % STATS_COLORS.length]}
+                                fill={STATS_COLORS[idx % STATS_COLORS.length]} fillOpacity={0.15} />
+                            ))}
+                            <Legend wrapperStyle={{ paddingTop: '16px' }} />
+                          </RadarChart>
+                        ) : (
+                          <LineChart data={statsLineData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 11 }} angle={-45} textAnchor="end" height={70} />
+                            <YAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }} labelStyle={{ color: '#f1f5f9' }} />
+                            <Legend wrapperStyle={{ paddingTop: '16px' }} />
+                            {statsCategories.map((cat: any, idx: number) => (
+                              <Line key={cat.id} type="monotone" dataKey={cat.name}
+                                stroke={STATS_COLORS[idx % STATS_COLORS.length]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                            ))}
+                          </LineChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-8 text-center">
+                    <p className="text-xs text-slate-500 italic">No assessment history recorded yet.</p>
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-500">{statsModalPlayerName}</span>
+                <button onClick={() => setStatsModalPlayerId(null)} className="text-xs text-violet-400 hover:text-violet-300 font-semibold transition-colors">Close</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Edit Modal */}
       {editEvent && (
