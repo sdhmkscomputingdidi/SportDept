@@ -111,3 +111,59 @@ CREATE TABLE public.players_events (
   CONSTRAINT players_events_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.players(id),
   CONSTRAINT players_events_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id)
 );
+CREATE TABLE public.coach_attendance (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  coach_id uuid NOT NULL,
+  sport_id uuid NOT NULL,
+  date date NOT NULL,
+  status text NOT NULL DEFAULT 'present'::text CHECK (status = ANY (ARRAY['present'::text, 'absent'::text, 'late'::text, 'excused'::text])),
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT coach_attendance_pkey PRIMARY KEY (id),
+  CONSTRAINT coach_attendance_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES public.profiles(id),
+  CONSTRAINT coach_attendance_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id)
+);
+CREATE TABLE public.student_attendance (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  player_id uuid NOT NULL,
+  sport_id uuid NOT NULL,
+  date date NOT NULL,
+  status text NOT NULL DEFAULT 'present'::text CHECK (status = ANY (ARRAY['present'::text, 'absent'::text, 'late'::text, 'excused'::text])),
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT student_attendance_pkey PRIMARY KEY (id),
+  CONSTRAINT student_attendance_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.players(id),
+  CONSTRAINT student_attendance_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id)
+);
+CREATE TABLE public.sport_training_days (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  sport_id uuid NOT NULL,
+  day_of_week smallint NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT sport_training_days_pkey PRIMARY KEY (id),
+  CONSTRAINT sport_training_days_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id)
+);
+CREATE TABLE public.holidays (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  sport_id uuid,
+  date date NOT NULL,
+  name text NOT NULL,
+  description text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT holidays_pkey PRIMARY KEY (id),
+  CONSTRAINT holidays_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id)
+);
+CREATE TABLE public.player_attendance (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  player_id uuid NOT NULL,
+  sport_id uuid NOT NULL,
+  coach_id uuid,
+  date date NOT NULL,
+  status text NOT NULL CHECK (status = ANY (ARRAY['present'::text, 'absent'::text, 'late'::text])),
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT player_attendance_pkey PRIMARY KEY (id),
+  CONSTRAINT player_attendance_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.players(id),
+  CONSTRAINT player_attendance_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id),
+  CONSTRAINT player_attendance_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES public.profiles(id)
+);

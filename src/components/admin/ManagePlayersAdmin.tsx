@@ -321,12 +321,12 @@ export const ManagePlayers: React.FC = () => {
 
       <div className="flex flex-col md:flex-row md:gap-6 flex-1">
       {/* Left Column - Add Student Form */}
-      <div className={`w-full md:w-96 bg-slate-900 p-4 md:p-6 rounded-xl md:overflow-y-auto md:flex md:flex-col ${mobileView === 'list' ? 'hidden md:block' : ''}`}>
+      <div className={`w-full md:w-96 bg-slate-900 p-4 md:p-6 rounded-xl md:overflow-y-auto md:h-fit ${mobileView === 'list' ? 'hidden md:block' : ''}`}>
         <h3 className="font-bold mb-4 uppercase text-xs text-slate-400">
           {urlSportId ? `Add Student to ${sports.find(s => s.id === urlSportId)?.name || ''}` : 'Add New Student'}
         </h3>
 
-        <form onSubmit={handleAddPlayer} className="space-y-4 flex-1">
+        <form onSubmit={handleAddPlayer} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               Student Name
@@ -480,8 +480,8 @@ export const ManagePlayers: React.FC = () => {
           </div>
         ) : (
           /* LIST VIEW */
-          <>
-            <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col h-full min-h-0">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <div>
                 <h2 className="text-2xl font-bold text-white">
                   {urlSportId ? `${sports.find(s => s.id === urlSportId)?.name || 'Sport'} Students` : 'Unassigned Students'}
@@ -493,7 +493,7 @@ export const ManagePlayers: React.FC = () => {
             </div>
 
             {/* Search & Sort */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-4 flex-shrink-0">
               <div className="flex-1">
                 <input
                   type="text"
@@ -513,93 +513,95 @@ export const ManagePlayers: React.FC = () => {
             </div>
 
             {error && (
-              <div className="p-3 rounded-lg bg-red-950/50 border border-red-500/30 text-red-300 text-sm mb-4">
+              <div className="p-3 rounded-lg bg-red-950/50 border border-red-500/30 text-red-300 text-sm mb-4 flex-shrink-0">
                 {error}
               </div>
             )}
 
-            {(() => {
-              const filtered = players
-                .filter(p => p.full_name.toLowerCase().includes(playerSearchQuery.toLowerCase()))
-                .sort((a, b) => {
-                  const cmp = a.full_name.localeCompare(b.full_name);
-                  return playerSortOrder === 'asc' ? cmp : -cmp;
-                });
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {(() => {
+                const filtered = players
+                  .filter(p => p.full_name.toLowerCase().includes(playerSearchQuery.toLowerCase()))
+                  .sort((a, b) => {
+                    const cmp = a.full_name.localeCompare(b.full_name);
+                    return playerSortOrder === 'asc' ? cmp : -cmp;
+                  });
 
-              if (loading) {
-                return (
-                  <div className="flex items-center justify-center h-64">
-                    <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
-                  </div>
-                );
-              }
-
-              if (filtered.length === 0) {
-                return (
-                  <div className="glass-panel rounded-xl p-8 text-center text-slate-400">
-                    {playerSearchQuery
-                      ? 'No students match your search.'
-                      : (urlSportId
-                        ? 'No students assigned to this sport yet.'
-                        : 'No unassigned students. Add a new student or assign existing ones.')}
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-2">
-                  {filtered.map((player) => (
-                    <div
-                      key={player.id}
-                      className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-800"
-                    >
-                      <button
-                        onClick={() => setSelectedPlayer(player)}
-                        className="flex-1 text-left"
-                      >
-                        <span className="text-sm font-medium text-slate-200">{player.full_name}</span>
-                        {player.sport_id && (
-                          <span className="ml-2 text-xs bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded">
-                            {getSportName(player.sport_id)}
-                          </span>
-                        )}
-                        {!player.sport_id && (
-                          <span className="ml-2 text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">
-                            Unassigned
-                          </span>
-                        )}
-                      </button>
-                      <div className="flex gap-2">
-                        {player.sport_id ? (
-                          <button
-                            onClick={() => handleUnassignPlayer(player.id)}
-                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded text-xs font-semibold transition-colors"
-                          >
-                            Unassign
-                          </button>
-                        ) : (
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) handleAssignPlayer(player.id, e.target.value);
-                            }}
-                            defaultValue=""
-                            className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-violet-500"
-                          >
-                            <option value="" disabled>Assign to...</option>
-                            {sports.map((sport) => (
-                              <option key={sport.id} value={sport.id}>
-                                {sport.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
+                if (loading) {
+                  return (
+                    <div className="flex items-center justify-center h-64">
+                      <span className="w-8 h-8 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></span>
                     </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </>
+                  );
+                }
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="glass-panel rounded-xl p-8 text-center text-slate-400">
+                      {playerSearchQuery
+                        ? 'No students match your search.'
+                        : (urlSportId
+                          ? 'No students assigned to this sport yet.'
+                          : 'No unassigned students. Add a new student or assign existing ones.')}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2 pr-1">
+                    {filtered.map((player) => (
+                      <div
+                        key={player.id}
+                        className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-800"
+                      >
+                        <button
+                          onClick={() => setSelectedPlayer(player)}
+                          className="flex-1 text-left"
+                        >
+                          <span className="text-sm font-medium text-slate-200">{player.full_name}</span>
+                          {player.sport_id && (
+                            <span className="ml-2 text-xs bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded">
+                              {getSportName(player.sport_id)}
+                            </span>
+                          )}
+                          {!player.sport_id && (
+                            <span className="ml-2 text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">
+                              Unassigned
+                            </span>
+                          )}
+                        </button>
+                        <div className="flex gap-2 flex-shrink-0">
+                          {player.sport_id ? (
+                            <button
+                              onClick={() => handleUnassignPlayer(player.id)}
+                              className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded text-xs font-semibold transition-colors"
+                            >
+                              Unassign
+                            </button>
+                          ) : (
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) handleAssignPlayer(player.id, e.target.value);
+                              }}
+                              defaultValue=""
+                              className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-violet-500"
+                            >
+                              <option value="" disabled>Assign to...</option>
+                              {sports.map((sport) => (
+                                <option key={sport.id} value={sport.id}>
+                                  {sport.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         )}
       </div>
     </div>

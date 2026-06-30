@@ -12,6 +12,7 @@ interface DashboardStats {
   sportsCount: number;
   coachesCount: number;
   playersCount: number;
+  unassignedCount: number;
   eventsCount: number;
   totalEventsCount: number;
   totalAttendance: number;
@@ -52,7 +53,7 @@ const PIE_COLORS = ['#34d399', '#f87171', '#fbbf24'];
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
-    sportsCount: 0, coachesCount: 0, playersCount: 0, eventsCount: 0,
+    sportsCount: 0, coachesCount: 0, playersCount: 0, unassignedCount: 0, eventsCount: 0,
     totalEventsCount: 0,
     totalAttendance: 0, recentSessions: 0,
   });
@@ -61,26 +62,32 @@ export const AdminDashboard: React.FC = () => {
   const [upcomingModalOpen, setUpcomingModalOpen] = useState(false);
   const [allUpcomingEvents, setAllUpcomingEvents] = useState<{ id: string; name: string; event_date: string; sport_id: string; sport_name: string }[]>([]);
   const [upcomingModalLoading, setUpcomingModalLoading] = useState(false);
+  const [upcomingSearchQuery, setUpcomingSearchQuery] = useState('');
 
   const [sportsModalOpen, setSportsModalOpen] = useState(false);
-  const [allSports, setAllSports] = useState<{ id: string; name: string }[]>([]);
+  const [allSports, setAllSports] = useState<{ id: string; name: string; coaches: string[] }[]>([]);
   const [sportsModalLoading, setSportsModalLoading] = useState(false);
+  const [sportSearchQuery, setSportSearchQuery] = useState('');
 
   const [coachesModalOpen, setCoachesModalOpen] = useState(false);
   const [allCoaches, setAllCoaches] = useState<{ id: string; full_name: string; sports: string[] }[]>([]);
   const [coachesModalLoading, setCoachesModalLoading] = useState(false);
+  const [coachSearchQuery, setCoachSearchQuery] = useState('');
 
   const [studentsModalOpen, setStudentsModalOpen] = useState(false);
-  const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; sport_name: string }[]>([]);
+  const [allStudents, setAllStudents] = useState<{ id: string; name: string; count: number }[]>([]);
   const [studentsModalLoading, setStudentsModalLoading] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
   const [coachAttModalOpen, setCoachAttModalOpen] = useState(false);
   const [allCoachAtt, setAllCoachAtt] = useState<{ coach_name: string; sport_name: string; date: string; status: string }[]>([]);
   const [coachAttModalLoading, setCoachAttModalLoading] = useState(false);
+  const [coachAttSearchQuery, setCoachAttSearchQuery] = useState('');
 
   const [studentSessModalOpen, setStudentSessModalOpen] = useState(false);
   const [allStudentSess, setAllStudentSess] = useState<{ player_name: string; sport_name: string; date: string; status: string }[]>([]);
   const [studentSessModalLoading, setStudentSessModalLoading] = useState(false);
+  const [studentSessSearchQuery, setStudentSessSearchQuery] = useState('');
 
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [topCoaches, setTopCoaches] = useState<TopPerformer[]>([]);
@@ -95,10 +102,14 @@ export const AdminDashboard: React.FC = () => {
     setError(null);
     try {
       const todayStr = new Date().toISOString().split('T')[0];
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
       const [
         { count: sportsCount },
         { count: coachesCount },
         { count: playersCount },
+        { count: unassignedCount },
         { count: eventsCount },
         { count: totalEventsCount },
         { count: attendanceCount },
@@ -111,6 +122,7 @@ export const AdminDashboard: React.FC = () => {
         supabase.from('sports').select('*', { count: 'exact', head: true }),
         supabase.from('coaches_sports').select('*', { count: 'exact', head: true }),
         supabase.from('players').select('*', { count: 'exact', head: true }),
+        supabase.from('players').select('*', { count: 'exact', head: true }).is('sport_id', null),
         supabase.from('events').select('*', { count: 'exact', head: true }).gte('event_date', todayStr),
         supabase.from('events').select('*', { count: 'exact', head: true }),
         supabase.from('coach_attendance').select('*', { count: 'exact', head: true }),
@@ -123,8 +135,8 @@ export const AdminDashboard: React.FC = () => {
           `)
           .order('date', { ascending: false })
           .limit(10),
-        supabase.from('coach_attendance').select('coach_id, date, status, coach_name:profiles!coach_id(full_name)'),
-        supabase.from('player_attendance').select('player_id, date, status, player_info:players!player_id(full_name)'),
+        supabase.from('coach_attendance').select('coach_id, date, status, coach_name:profiles!coach_id(full_name)').gte('date', sixMonthsAgoStr),
+        supabase.from('player_attendance').select('player_id, date, status, player_info:players!player_id(full_name)').gte('date', sixMonthsAgoStr),
         supabase.from('events').select('id, name, event_date, sports(name)').gte('event_date', todayStr).order('event_date', { ascending: true }).limit(5),
       ]);
 
@@ -230,6 +242,7 @@ export const AdminDashboard: React.FC = () => {
         sportsCount: sportsCount || 0,
         coachesCount: coachesCount || 0,
         playersCount: playersCount || 0,
+        unassignedCount: unassignedCount || 0,
         eventsCount: eventsCount || 0,
         totalEventsCount: totalEventsCount || 0,
         totalAttendance: (attendanceCount || 0) + (sessionsCount || 0),
@@ -268,6 +281,7 @@ export const AdminDashboard: React.FC = () => {
 
   const openUpcomingModal = useCallback(async () => {
     setUpcomingModalOpen(true);
+    setUpcomingSearchQuery('');
     setUpcomingModalLoading(true);
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -289,10 +303,23 @@ export const AdminDashboard: React.FC = () => {
 
   const openSportsModal = useCallback(async () => {
     setSportsModalOpen(true);
+    setSportSearchQuery('');
     setSportsModalLoading(true);
     try {
-      const { data } = await supabase.from('sports').select('id, name').order('name', { ascending: true });
-      setAllSports(data || []);
+      const { data: sportsData } = await supabase.from('sports').select('id, name').order('name', { ascending: true });
+      const { data: csData } = await supabase
+        .from('coaches_sports')
+        .select('sport_id, profiles!coaches_sports_coach_id_fkey(full_name)');
+      const coachMap = new Map<string, string[]>();
+      (csData || []).forEach((cs: any) => {
+        if (!coachMap.has(cs.sport_id)) coachMap.set(cs.sport_id, []);
+        if (cs.profiles?.full_name) coachMap.get(cs.sport_id)!.push(cs.profiles.full_name);
+      });
+      setAllSports((sportsData || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        coaches: coachMap.get(s.id) || [],
+      })));
     } catch (err) {
       console.warn('Failed to fetch sports:', err);
     } finally {
@@ -302,6 +329,7 @@ export const AdminDashboard: React.FC = () => {
 
   const openCoachesModal = useCallback(async () => {
     setCoachesModalOpen(true);
+    setCoachSearchQuery('');
     setCoachesModalLoading(true);
     try {
       const { data: profiles } = await supabase.from('profiles').select('id, full_name').eq('role', 'coach').order('full_name', { ascending: true });
@@ -332,18 +360,34 @@ export const AdminDashboard: React.FC = () => {
 
   const openStudentsModal = useCallback(async () => {
     setStudentsModalOpen(true);
+    setStudentSearchQuery('');
     setStudentsModalLoading(true);
     try {
-      const { data } = await supabase
+      // Lightweight query: fetch sports with player counts instead of all individual students
+      const { data: sportsData } = await supabase
+        .from('sports')
+        .select(`id, name, players(count)`)
+        .order('name', { ascending: true });
+      const { count: unassignedCount } = await supabase
         .from('players')
-        .select('id, full_name, sports(name)')
-        .order('full_name', { ascending: true });
-      setAllStudents((data || []).map((p: any) => ({
-        id: p.id, full_name: p.full_name || 'Unknown',
-        sport_name: p.sports?.name || '',
-      })));
+        .select('*', { count: 'exact', head: true })
+        .is('sport_id', null);
+      const list: { id: string; name: string; count: number }[] = (sportsData || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        count: s.players?.[0]?.count || 0,
+      }));
+      if (unassignedCount && unassignedCount > 0) {
+        list.push({ id: '', name: 'Unassigned', count: unassignedCount });
+      }
+      setAllStudents(list);
     } catch (err) {
       console.warn('Failed to fetch students:', err);
+      // Fallback: still try to show something meaningful
+      try {
+        const { data: fallback } = await supabase.from('sports').select('id, name').order('name');
+        setAllStudents((fallback || []).map((s: any) => ({ id: s.id, name: s.name, count: 0 })));
+      } catch {}
     } finally {
       setStudentsModalLoading(false);
     }
@@ -351,6 +395,7 @@ export const AdminDashboard: React.FC = () => {
 
   const openCoachAttModal = useCallback(async () => {
     setCoachAttModalOpen(true);
+    setCoachAttSearchQuery('');
     setCoachAttModalLoading(true);
     try {
       const { data } = await supabase
@@ -377,6 +422,7 @@ export const AdminDashboard: React.FC = () => {
 
   const openStudentSessModal = useCallback(async () => {
     setStudentSessModalOpen(true);
+    setStudentSessSearchQuery('');
     setStudentSessModalLoading(true);
     try {
       const { data: sportList } = await supabase.from('sports').select('id, name');
@@ -405,7 +451,7 @@ export const AdminDashboard: React.FC = () => {
   const cards = [
     { label: 'Sports', value: stats.sportsCount, icon: '📊', color: 'violet' as const, onClick: openSportsModal },
     { label: 'Coaches', value: stats.coachesCount, icon: '👔', color: 'blue' as const, onClick: openCoachesModal },
-    { label: 'Students', value: stats.playersCount, icon: '🏃', color: 'emerald' as const, onClick: openStudentsModal },
+    { label: 'Students', value: stats.unassignedCount, icon: '🏃', color: 'emerald' as const, total: stats.playersCount, onClick: openStudentsModal },
     { label: 'Upcoming Events', value: stats.eventsCount, icon: '📅', color: 'amber' as const, total: stats.totalEventsCount, onClick: openUpcomingModal },
     { label: 'Coach Attendance', value: stats.totalAttendance, icon: '📋', color: 'rose' as const, onClick: openCoachAttModal },
     { label: 'Student Sessions', value: stats.recentSessions, icon: '🎯', color: 'cyan' as const, onClick: openStudentSessModal },
@@ -765,26 +811,76 @@ export const AdminDashboard: React.FC = () => {
       {/* ── Sports Modal ── */}
       {sportsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSportsModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSportsModalOpen(false); setSportSearchQuery(''); }} />
           <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden mx-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
               <h3 className="text-lg font-bold text-white">📊 Sports</h3>
-              <button onClick={() => setSportsModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+              <button onClick={() => { setSportsModalOpen(false); setSportSearchQuery(''); }} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+
+            {/* Search input */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search sports or coaches..."
+                  value={sportSearchQuery}
+                  onChange={(e) => setSportSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                {sportSearchQuery && (
+                  <button
+                    onClick={() => setSportSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-5 pt-2">
               {sportsModalLoading ? (
                 <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-slate-800/30 animate-pulse" />)}
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-slate-800/30 animate-pulse" />)}
                 </div>
               ) : allSports.length > 0 ? (
-                <div className="space-y-1.5">
-                  {allSports.map((s) => (
-                    <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30">
-                      <span className="text-lg">⚽</span>
-                      <p className="text-sm font-medium text-white">{s.name}</p>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  {(() => {
+                    const filtered = allSports.filter(s =>
+                      s.name.toLowerCase().includes(sportSearchQuery.toLowerCase()) ||
+                      s.coaches.some(c => c.toLowerCase().includes(sportSearchQuery.toLowerCase()))
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {filtered.map((s) => (
+                          <div key={s.id} className="p-3 rounded-lg bg-slate-800/30">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg">⚽</span>
+                              <p className="text-sm font-medium text-white">{s.name}</p>
+                              <span className="ml-auto text-[10px] text-slate-500">{s.coaches.length} coach{s.coaches.length !== 1 ? 'es' : ''}</span>
+                            </div>
+                            {s.coaches.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2 ml-9">
+                                {s.coaches.map((coach) => (
+                                  <span key={coach} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300">
+                                    👔 {coach}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-4xl mb-3">🔍</p>
+                        <p className="text-slate-400 text-sm">No sports match "{sportSearchQuery}"</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-4xl mb-3">📭</p>
@@ -793,7 +889,7 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <div className="p-4 border-t border-slate-800/60 flex justify-end">
-              <Link to="/admin/sports" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setSportsModalOpen(false)}>Manage Sports →</Link>
+              <Link to="/admin/sports" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => { setSportsModalOpen(false); setSportSearchQuery(''); }}>Manage Sports →</Link>
             </div>
           </div>
         </div>
@@ -802,32 +898,65 @@ export const AdminDashboard: React.FC = () => {
       {/* ── Coaches Modal ── */}
       {coachesModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCoachesModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setCoachesModalOpen(false); setCoachSearchQuery(''); }} />
           <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden mx-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
               <h3 className="text-lg font-bold text-white">👔 Coaches</h3>
-              <button onClick={() => setCoachesModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+              <button onClick={() => { setCoachesModalOpen(false); setCoachSearchQuery(''); }} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+
+            {/* Search */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search coaches or sports..."
+                  value={coachSearchQuery}
+                  onChange={(e) => setCoachSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                {coachSearchQuery && (
+                  <button onClick={() => setCoachSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm">✕</button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-5 pt-2">
               {coachesModalLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-slate-800/30 animate-pulse" />)}
                 </div>
               ) : allCoaches.length > 0 ? (
-                <div className="space-y-1.5">
-                  {allCoaches.map((c) => (
-                    <div key={c.id} className="p-3 rounded-lg bg-slate-800/30">
-                      <p className="text-sm font-medium text-white">{c.full_name}</p>
-                      {c.sports.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {c.sports.map((s) => (
-                            <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300">{s}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <>
+                  {(() => {
+                    const filtered = allCoaches.filter(c =>
+                      c.full_name.toLowerCase().includes(coachSearchQuery.toLowerCase()) ||
+                      c.sports.some(s => s.toLowerCase().includes(coachSearchQuery.toLowerCase()))
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {filtered.map((c) => (
+                          <div key={c.id} className="p-3 rounded-lg bg-slate-800/30">
+                            <p className="text-sm font-medium text-white">{c.full_name}</p>
+                            {c.sports.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {c.sports.map((s) => (
+                                  <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300">{s}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-4xl mb-3">🔍</p>
+                        <p className="text-slate-400 text-sm">No coaches match "{coachSearchQuery}"</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-4xl mb-3">📭</p>
@@ -836,7 +965,7 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <div className="p-4 border-t border-slate-800/60 flex justify-end">
-              <Link to="/admin/coaches" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setCoachesModalOpen(false)}>Manage Coaches →</Link>
+              <Link to="/admin/coaches" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => { setCoachesModalOpen(false); setCoachSearchQuery(''); }}>Manage Coaches →</Link>
             </div>
           </div>
         </div>
@@ -845,26 +974,81 @@ export const AdminDashboard: React.FC = () => {
       {/* ── Students Modal ── */}
       {studentsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setStudentsModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setStudentsModalOpen(false); setStudentSearchQuery(''); }} />
           <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden mx-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
-              <h3 className="text-lg font-bold text-white">🏃 Students</h3>
-              <button onClick={() => setStudentsModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+              <h3 className="text-lg font-bold text-white">🏃 Students by Sport</h3>
+              <button onClick={() => { setStudentsModalOpen(false); setStudentSearchQuery(''); }} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+
+            {/* Search */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search sports..."
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                {studentSearchQuery && (
+                  <button onClick={() => setStudentSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm">✕</button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-5 pt-2">
               {studentsModalLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-slate-800/30 animate-pulse" />)}
                 </div>
               ) : allStudents.length > 0 ? (
-                <div className="space-y-1.5">
-                  {allStudents.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
-                      <p className="text-sm font-medium text-white">{s.full_name}</p>
-                      {s.sport_name && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">{s.sport_name}</span>}
-                    </div>
-                  ))}
-                </div>
+                <>
+                  {(() => {
+                    const q = studentSearchQuery.toLowerCase();
+                    const filtered = allStudents.filter(s =>
+                      s.name.toLowerCase().includes(q)
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {filtered.map((s) =>
+                          s.id ? (
+                            <Link
+                              key={s.id}
+                              to={`/admin/players/${s.id}`}
+                              onClick={() => { setStudentsModalOpen(false); setStudentSearchQuery(''); }}
+                              className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-700/30 transition-all group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-lg">🏃</span>
+                                <p className="text-sm font-medium text-white group-hover:text-violet-300 transition-colors">{s.name}</p>
+                              </div>
+                              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 font-semibold">
+                                {s.count} student{s.count !== 1 ? 's' : ''}
+                              </span>
+                            </Link>
+                          ) : (
+                            <div key="unassigned" className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 opacity-70">
+                              <div className="flex items-center gap-3">
+                                <span className="text-lg">📋</span>
+                                <p className="text-sm font-medium text-slate-400">{s.name}</p>
+                              </div>
+                              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-700/50 text-slate-400 font-semibold">
+                                {s.count} student{s.count !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-4xl mb-3">🔍</p>
+                        <p className="text-slate-400 text-sm">No sports match "{studentSearchQuery}"</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-4xl mb-3">📭</p>
@@ -873,7 +1057,7 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <div className="p-4 border-t border-slate-800/60 flex justify-end">
-              <Link to="/admin/players" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setStudentsModalOpen(false)}>Manage Students →</Link>
+              <Link to="/admin/players" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => { setStudentsModalOpen(false); setStudentSearchQuery(''); }}>Manage Students →</Link>
             </div>
           </div>
         </div>
@@ -882,33 +1066,69 @@ export const AdminDashboard: React.FC = () => {
       {/* ── Coach Attendance Modal ── */}
       {coachAttModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCoachAttModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setCoachAttModalOpen(false); setCoachAttSearchQuery(''); }} />
           <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden mx-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
               <h3 className="text-lg font-bold text-white">📋 Coach Attendance</h3>
-              <button onClick={() => setCoachAttModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+              <button onClick={() => { setCoachAttModalOpen(false); setCoachAttSearchQuery(''); }} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+
+            {/* Search */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by coach, sport, or status..."
+                  value={coachAttSearchQuery}
+                  onChange={(e) => setCoachAttSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                {coachAttSearchQuery && (
+                  <button onClick={() => setCoachAttSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm">✕</button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-5 pt-2">
               {coachAttModalLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-slate-800/30 animate-pulse" />)}
                 </div>
               ) : allCoachAtt.length > 0 ? (
-                <div className="space-y-1.5">
-                  {allCoachAtt.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{r.coach_name}</p>
-                        <p className="text-[10px] text-slate-500">{r.sport_name} · {r.date}</p>
+                <>
+                  {(() => {
+                    const q = coachAttSearchQuery.toLowerCase();
+                    const filtered = allCoachAtt.filter(r =>
+                      r.coach_name.toLowerCase().includes(q) ||
+                      r.sport_name.toLowerCase().includes(q) ||
+                      r.status.toLowerCase().includes(q) ||
+                      r.date.includes(q)
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {filtered.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white truncate">{r.coach_name}</p>
+                              <p className="text-[10px] text-slate-500">{r.sport_name} · {r.date}</p>
+                            </div>
+                            <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
+                              r.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' :
+                              r.status === 'absent' ? 'bg-red-500/10 text-red-400' :
+                              'bg-amber-500/10 text-amber-400'
+                            }`}>{r.status}</span>
+                          </div>
+                        ))}
                       </div>
-                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
-                        r.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' :
-                        r.status === 'absent' ? 'bg-red-500/10 text-red-400' :
-                        'bg-amber-500/10 text-amber-400'
-                      }`}>{r.status}</span>
-                    </div>
-                  ))}
-                </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-4xl mb-3">🔍</p>
+                        <p className="text-slate-400 text-sm">No records match "{coachAttSearchQuery}"</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-4xl mb-3">📭</p>
@@ -917,7 +1137,7 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <div className="p-4 border-t border-slate-800/60 flex justify-end">
-              <Link to="/admin/attendance" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setCoachAttModalOpen(false)}>View Attendance →</Link>
+              <Link to="/admin/attendance" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => { setCoachAttModalOpen(false); setCoachAttSearchQuery(''); }}>View Attendance →</Link>
             </div>
           </div>
         </div>
@@ -926,33 +1146,69 @@ export const AdminDashboard: React.FC = () => {
       {/* ── Student Sessions Modal ── */}
       {studentSessModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setStudentSessModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setStudentSessModalOpen(false); setStudentSessSearchQuery(''); }} />
           <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden mx-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
               <h3 className="text-lg font-bold text-white">🎯 Student Sessions</h3>
-              <button onClick={() => setStudentSessModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+              <button onClick={() => { setStudentSessModalOpen(false); setStudentSessSearchQuery(''); }} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+
+            {/* Search */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by student, sport, or status..."
+                  value={studentSessSearchQuery}
+                  onChange={(e) => setStudentSessSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                {studentSessSearchQuery && (
+                  <button onClick={() => setStudentSessSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm">✕</button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-5 pt-2">
               {studentSessModalLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-slate-800/30 animate-pulse" />)}
                 </div>
               ) : allStudentSess.length > 0 ? (
-                <div className="space-y-1.5">
-                  {allStudentSess.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{r.player_name}</p>
-                        <p className="text-[10px] text-slate-500">{r.sport_name} · {r.date}</p>
+                <>
+                  {(() => {
+                    const q = studentSessSearchQuery.toLowerCase();
+                    const filtered = allStudentSess.filter(r =>
+                      r.player_name.toLowerCase().includes(q) ||
+                      r.sport_name.toLowerCase().includes(q) ||
+                      r.status.toLowerCase().includes(q) ||
+                      r.date.includes(q)
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {filtered.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white truncate">{r.player_name}</p>
+                              <p className="text-[10px] text-slate-500">{r.sport_name} · {r.date}</p>
+                            </div>
+                            <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
+                              r.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' :
+                              r.status === 'absent' ? 'bg-red-500/10 text-red-400' :
+                              'bg-amber-500/10 text-amber-400'
+                            }`}>{r.status}</span>
+                          </div>
+                        ))}
                       </div>
-                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
-                        r.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' :
-                        r.status === 'absent' ? 'bg-red-500/10 text-red-400' :
-                        'bg-amber-500/10 text-amber-400'
-                      }`}>{r.status}</span>
-                    </div>
-                  ))}
-                </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-4xl mb-3">🔍</p>
+                        <p className="text-slate-400 text-sm">No sessions match "{studentSessSearchQuery}"</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-4xl mb-3">📭</p>
@@ -961,7 +1217,7 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <div className="p-4 border-t border-slate-800/60 flex justify-end">
-              <Link to="/admin/attendance" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setStudentSessModalOpen(false)}>View Attendance →</Link>
+              <Link to="/admin/attendance" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => { setStudentSessModalOpen(false); setStudentSessSearchQuery(''); }}>View Attendance →</Link>
             </div>
           </div>
         </div>
@@ -970,37 +1226,71 @@ export const AdminDashboard: React.FC = () => {
       {/* ── Upcoming Events Modal ── */}
       {upcomingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setUpcomingModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setUpcomingModalOpen(false); setUpcomingSearchQuery(''); }} />
           <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden mx-4">
             <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
               <h3 className="text-lg font-bold text-white">📅 Upcoming Events</h3>
-              <button onClick={() => setUpcomingModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+              <button onClick={() => { setUpcomingModalOpen(false); setUpcomingSearchQuery(''); }} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+
+            {/* Search */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search events or sports..."
+                  value={upcomingSearchQuery}
+                  onChange={(e) => setUpcomingSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                {upcomingSearchQuery && (
+                  <button onClick={() => setUpcomingSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm">✕</button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-5 pt-2">
               {upcomingModalLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-slate-800/30 animate-pulse" />)}
                 </div>
               ) : allUpcomingEvents.length > 0 ? (
-                <div className="space-y-2">
-                  {allUpcomingEvents.map((evt) => {
-                    const daysUntil = Math.ceil((new Date(evt.event_date + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                    return (
-                      <Link key={evt.id} to={`/admin/events/${evt.sport_id}?eventId=${evt.id}`} onClick={() => setUpcomingModalOpen(false)} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-700/30 transition-all">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{evt.name}</p>
-                          <p className="text-[10px] text-slate-500">{evt.sport_name}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <p className="text-sm text-slate-300">{evt.event_date}</p>
-                          <p className="text-[10px] font-semibold text-amber-400">
-                            {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `in ${daysUntil} days`}
-                          </p>
-                        </div>
-                      </Link>
+                <>
+                  {(() => {
+                    const q = upcomingSearchQuery.toLowerCase();
+                    const filtered = allUpcomingEvents.filter(e =>
+                      e.name.toLowerCase().includes(q) ||
+                      (e.sport_name && e.sport_name.toLowerCase().includes(q))
                     );
-                  })}
-                </div>
+                    return filtered.length > 0 ? (
+                      <div className="space-y-2">
+                        {filtered.map((evt) => {
+                          const daysUntil = Math.ceil((new Date(evt.event_date + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                          return (
+                            <Link key={evt.id} to={`/admin/events/${evt.sport_id}?eventId=${evt.id}`} onClick={() => setUpcomingModalOpen(false)} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-700/30 transition-all">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{evt.name}</p>
+                                <p className="text-[10px] text-slate-500">{evt.sport_name}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-4">
+                                <p className="text-sm text-slate-300">{evt.event_date}</p>
+                                <p className="text-[10px] font-semibold text-amber-400">
+                                  {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `in ${daysUntil} days`}
+                                </p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-4xl mb-3">🔍</p>
+                        <p className="text-slate-400 text-sm">No events match "{upcomingSearchQuery}"</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-4xl mb-3">📭</p>
@@ -1009,7 +1299,7 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <div className="p-4 border-t border-slate-800/60 flex justify-end">
-              <Link to="/admin/events" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setUpcomingModalOpen(false)}>View All Events →</Link>
+              <Link to="/admin/events" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => { setUpcomingModalOpen(false); setUpcomingSearchQuery(''); }}>View All Events →</Link>
             </div>
           </div>
         </div>

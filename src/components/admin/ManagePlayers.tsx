@@ -45,13 +45,15 @@ export const ManagePlayers: React.FC = () => {
       const { data } = await supabase
         .from('players')
         .select('id, full_name, sport_id')
-        .eq('sport_id', sportId);
+        .eq('sport_id', sportId)
+        .order('full_name', { ascending: true });
       setPlayers(data || []);
     } else {
       // Admin context: no sportId in URL — fetch all players across all sports
       const { data } = await supabase
         .from('players')
-        .select('id, full_name, sport_id');
+        .select('id, full_name, sport_id')
+        .order('full_name', { ascending: true });
       setPlayers(data || []);
     }
   };
@@ -273,9 +275,9 @@ export const ManagePlayers: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row md:h-screen md:p-6 md:gap-6 flex-1">
+      <div className="flex flex-col md:flex-row md:h-screen md:p-6 md:gap-6 flex-1 overflow-hidden">
       {/* Sidebar */}
-      <div className={`w-full md:w-64 bg-slate-900 p-4 md:p-4 md:rounded-xl overflow-y-auto ${mobileView === 'stats' ? 'hidden md:block' : ''}`}>
+      <div className={`w-full md:w-64 bg-slate-900 p-4 md:p-4 md:rounded-xl overflow-y-auto md:max-h-full ${mobileView === 'stats' ? 'hidden md:block' : ''}`}>
         <h3 className="font-bold mb-4 uppercase text-xs text-slate-400">Players</h3>
         {players.map(p => (
           <div key={p.id} className="flex items-center gap-2 mb-2">
@@ -292,8 +294,8 @@ export const ManagePlayers: React.FC = () => {
       {/* Main Content */}
       <div className={`w-full md:flex-1 md:flex md:flex-col md:min-w-0 bg-slate-900 p-4 md:p-6 rounded-xl border border-slate-800 ${mobileView === 'students' ? 'hidden md:block' : ''}`}>
         {selectedPlayer ? (
-          <>
-            <div className="mb-4">
+          <div className="flex flex-col h-full min-h-0">
+            <div className="mb-4 flex-shrink-0">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Select Student</label>
               <select
                 value={selectedPlayer.id}
@@ -310,7 +312,7 @@ export const ManagePlayers: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="flex flex-wrap gap-2 mb-6 bg-slate-950 p-4 rounded-lg">
+            <div className="flex flex-wrap gap-2 mb-6 bg-slate-950 p-4 rounded-lg flex-shrink-0">
               <div className="flex items-center gap-2 mr-4">
                 <span className="text-xs text-slate-400">View:</span>
                 <select 
@@ -343,67 +345,69 @@ export const ManagePlayers: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex-1 w-full h-[250px] md:h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                {chartType === 'radar' ? (
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="#475569" />
-                    <PolarAngleAxis dataKey="category" />
-                    <PolarRadiusAxis domain={[0, 10]} />
-                    {selectedMonths.map((m, idx) => (
-                      <Radar key={m} name={getMonthLabel(m)} 
-                        dataKey={`month_${m}`} stroke={COLORS[idx % COLORS.length]} 
-                        fill={COLORS[idx % COLORS.length]} fillOpacity={0.2} />
-                    ))}
-                    <Legend />
-                  </RadarChart>
-                ) : (
-                  <LineChart data={lineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                    <YAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                      labelStyle={{ color: '#f1f5f9' }}
-                    />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    {radarData.length > 0 ? radarData.map((d: any, idx: number) => (
-                      <Line 
-                        key={d.category || idx}
-                        type="monotone" 
-                        dataKey={d.category} 
-                        stroke={COLORS[idx % COLORS.length]}
-                        strokeWidth={2}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
+              <div className="w-full h-[250px] md:h-[400px] flex-shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'radar' ? (
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="#475569" />
+                      <PolarAngleAxis dataKey="category" />
+                      <PolarRadiusAxis domain={[0, 10]} />
+                      {selectedMonths.map((m, idx) => (
+                        <Radar key={m} name={getMonthLabel(m)} 
+                          dataKey={`month_${m}`} stroke={COLORS[idx % COLORS.length]} 
+                          fill={COLORS[idx % COLORS.length]} fillOpacity={0.2} />
+                      ))}
+                      <Legend />
+                    </RadarChart>
+                  ) : (
+                    <LineChart data={lineChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                      <YAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                        labelStyle={{ color: '#f1f5f9' }}
                       />
-                    )) : null}
-                  </LineChart>
-                )}
-              </ResponsiveContainer>
-            </div>
-
-            {playerEvents.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Events Participated</h3>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {playerEvents.map((pe) => (
-                    <div key={pe.event.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
-                      <div>
-                        <p className="text-sm font-medium text-slate-200">{pe.event.name}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {pe.event.sport?.name || ''} — {new Date(pe.event.event_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <span className="text-[10px] text-slate-500">
-                        Joined {new Date(pe.joined_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                      {radarData.length > 0 ? radarData.map((d: any, idx: number) => (
+                        <Line 
+                          key={d.category || idx}
+                          type="monotone" 
+                          dataKey={d.category} 
+                          stroke={COLORS[idx % COLORS.length]}
+                          strokeWidth={2}
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      )) : null}
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
               </div>
-            )}
-          </>
+
+              {playerEvents.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Events Participated</h3>
+                  <div className="space-y-2">
+                    {playerEvents.map((pe) => (
+                      <div key={pe.event.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">{pe.event.name}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {pe.event.sport?.name || ''} — {new Date(pe.event.event_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-slate-500">
+                          Joined {new Date(pe.joined_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500">
             Select a player to view stats.
