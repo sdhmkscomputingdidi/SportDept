@@ -53,6 +53,20 @@ export const CoachDashboard: React.FC = () => {
     sportsCount: 0, studentsCount: 0, eventsCount: 0, totalEventsCount: 0, totalSessions: 0,
   });
   const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; name: string; event_date: string; sport_name: string; sport_id: string }[]>([]);
+  // ── Modal state ──
+  const [upcomingModalOpen, setUpcomingModalOpen] = useState(false);
+  const [allUpcomingEvents, setAllUpcomingEvents] = useState<{ id: string; name: string; event_date: string; sport_name: string; sport_id: string }[]>([]);
+  const [upcomingModalLoading, setUpcomingModalLoading] = useState(false);
+
+  const [sportsModalOpen, setSportsModalOpen] = useState(false);
+  const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
+  const [allSessions, setAllSessions] = useState<{ player_name: string; sport_name: string; date: string; status: string }[]>([]);
+  const [sessionsModalLoading, setSessionsModalLoading] = useState(false);
+
+  const [studentsModalOpen, setStudentsModalOpen] = useState(false);
+  const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; sport_name: string }[]>([]);
+  const [studentsModalLoading, setStudentsModalLoading] = useState(false);
+
   const [assignedSports, setAssignedSports] = useState<{ id: string; name: string }[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [topStudents, setTopStudents] = useState<TopStudent[]>([]);
@@ -208,11 +222,96 @@ export const CoachDashboard: React.FC = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  const openSportsModal = useCallback(() => {
+    setSportsModalOpen(true);
+  }, []);
+
+  const openStudentsModal = useCallback(async () => {
+    setStudentsModalOpen(true);
+    setStudentsModalLoading(true);
+    try {
+      const sportIds = assignedSports.map(s => s.id);
+      if (sportIds.length === 0) { setAllStudents([]); return; }
+      const { data } = await supabase
+        .from('players')
+        .select('id, full_name, sport_id')
+        .in('sport_id', sportIds)
+        .order('full_name', { ascending: true });
+      const sportNameMap = new Map(assignedSports.map(s => [s.id, s.name]));
+      setAllStudents((data || []).map((p: any) => ({
+        id: p.id, full_name: p.full_name || 'Unknown',
+        sport_name: sportNameMap.get(p.sport_id) || '',
+      })));
+    } catch (err) {
+      console.warn('Failed to fetch students:', err);
+    } finally {
+      setStudentsModalLoading(false);
+    }
+  }, [assignedSports]);
+
+  const openSessionsModal = useCallback(async () => {
+    setSessionsModalOpen(true);
+    setSessionsModalLoading(true);
+    try {
+      const sportIds = assignedSports.map(s => s.id);
+      if (sportIds.length === 0) { setAllSessions([]); return; }
+      const { data } = await supabase
+        .from('player_attendance')
+        .select(`
+          date, status, player_id, sport_id,
+          player_info:players!player_id(full_name)
+        `)
+        .in('sport_id', sportIds)
+        .order('date', { ascending: false })
+        .limit(50);
+      const sportNameMap = new Map(assignedSports.map(s => [s.id, s.name]));
+      setAllSessions((data || []).map((r: any) => ({
+        player_name: r.player_info?.full_name || 'Unknown',
+        sport_name: sportNameMap.get(r.sport_id) || 'Unknown',
+        date: r.date,
+        status: r.status,
+      })));
+    } catch (err) {
+      console.warn('Failed to fetch sessions:', err);
+    } finally {
+      setSessionsModalLoading(false);
+    }
+  }, [assignedSports]);
+
+  const openUpcomingModal = useCallback(async () => {
+    setUpcomingModalOpen(true);
+    setUpcomingModalLoading(true);
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const sportIds = assignedSports.map(s => s.id);
+      if (sportIds.length === 0) {
+        setAllUpcomingEvents([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('events')
+        .select('id, name, event_date, sport_id')
+        .in('sport_id', sportIds)
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending: true });
+      const sportNameMap = new Map(assignedSports.map(s => [s.id, s.name]));
+      setAllUpcomingEvents((data || []).map((e: any) => ({
+        id: e.id, name: e.name, event_date: e.event_date,
+        sport_name: sportNameMap.get(e.sport_id) || '',
+        sport_id: e.sport_id,
+      })));
+    } catch (err) {
+      console.warn('Failed to fetch upcoming events:', err);
+    } finally {
+      setUpcomingModalLoading(false);
+    }
+  }, [assignedSports]);
+
   const cards = [
-    { label: 'Sports', value: stats.sportsCount, icon: '📊', color: 'violet' as const },
-    { label: 'Students', value: stats.studentsCount, icon: '🏃', color: 'emerald' as const },
-    { label: 'Upcoming Events', value: stats.eventsCount, icon: '📅', color: 'amber' as const, total: stats.totalEventsCount },
-    { label: 'Sessions', value: stats.totalSessions, icon: '🎯', color: 'cyan' as const },
+    { label: 'Sports', value: stats.sportsCount, icon: '📊', color: 'violet' as const, onClick: openSportsModal },
+    { label: 'Students', value: stats.studentsCount, icon: '🏃', color: 'emerald' as const, onClick: openStudentsModal },
+    { label: 'Upcoming Events', value: stats.eventsCount, icon: '📅', color: 'amber' as const, total: stats.totalEventsCount, onClick: openUpcomingModal },
+    { label: 'Sessions', value: stats.totalSessions, icon: '🎯', color: 'cyan' as const, onClick: openSessionsModal },
   ];
 
   // --- Loading state with skeletons ---
@@ -481,6 +580,168 @@ export const CoachDashboard: React.FC = () => {
           </Link>
         ))}
       </div>
+
+      {/* ── Sports Modal ── */}
+      {sportsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSportsModalOpen(false)} />
+          <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden mx-4">
+            <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
+              <h3 className="text-lg font-bold text-white">📊 My Sports</h3>
+              <button onClick={() => setSportsModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+              {assignedSports.length > 0 ? (
+                <div className="space-y-1.5">
+                  {assignedSports.map((s) => (
+                    <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30">
+                      <span className="text-lg">⚽</span>
+                      <p className="text-sm font-medium text-white">{s.name}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-4xl mb-3">📭</p>
+                  <p className="text-slate-400 text-sm">No sports assigned yet</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-800/60 flex justify-end">
+              <Link to="/coach/attendance" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setSportsModalOpen(false)}>Take Attendance →</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Students Modal ── */}
+      {studentsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setStudentsModalOpen(false)} />
+          <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden mx-4">
+            <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
+              <h3 className="text-lg font-bold text-white">🏃 My Students</h3>
+              <button onClick={() => setStudentsModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+              {studentsModalLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-slate-800/30 animate-pulse" />)}
+                </div>
+              ) : allStudents.length > 0 ? (
+                <div className="space-y-1.5">
+                  {allStudents.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
+                      <p className="text-sm font-medium text-white">{s.full_name}</p>
+                      {s.sport_name && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">{s.sport_name}</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-4xl mb-3">📭</p>
+                  <p className="text-slate-400 text-sm">No students yet</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-800/60 flex justify-end">
+              <Link to={assignedSports[0] ? `/coach/attendance/${assignedSports[0].id}` : '#'} className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setStudentsModalOpen(false)}>Take Attendance →</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sessions Modal ── */}
+      {sessionsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSessionsModalOpen(false)} />
+          <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden mx-4">
+            <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
+              <h3 className="text-lg font-bold text-white">🎯 Recent Sessions</h3>
+              <button onClick={() => setSessionsModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+              {sessionsModalLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-slate-800/30 animate-pulse" />)}
+                </div>
+              ) : allSessions.length > 0 ? (
+                <div className="space-y-1.5">
+                  {allSessions.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{r.player_name}</p>
+                        <p className="text-[10px] text-slate-500">{r.sport_name} · {r.date}</p>
+                      </div>
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
+                        r.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' :
+                        r.status === 'absent' ? 'bg-red-500/10 text-red-400' :
+                        'bg-amber-500/10 text-amber-400'
+                      }`}>{r.status}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-4xl mb-3">📭</p>
+                  <p className="text-slate-400 text-sm">No sessions recorded yet</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-800/60 flex justify-end">
+              <Link to={assignedSports[0] ? `/coach/attendance/${assignedSports[0].id}` : '#'} className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setSessionsModalOpen(false)}>Take Attendance →</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Upcoming Events Modal ── */}
+      {upcomingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setUpcomingModalOpen(false)} />
+          <div className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden mx-4">
+            <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
+              <h3 className="text-lg font-bold text-white">📅 Upcoming Events</h3>
+              <button onClick={() => setUpcomingModalOpen(false)} className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm">✕</button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-130px)] p-5">
+              {upcomingModalLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-slate-800/30 animate-pulse" />)}
+                </div>
+              ) : allUpcomingEvents.length > 0 ? (
+                <div className="space-y-2">
+                  {allUpcomingEvents.map((evt) => {
+                    const daysUntil = Math.ceil((new Date(evt.event_date + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <Link key={evt.id} to={`/coach/events/${evt.sport_id}?eventId=${evt.id}`} onClick={() => setUpcomingModalOpen(false)} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-700/30 transition-all">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{evt.name}</p>
+                          {evt.sport_name && <p className="text-[10px] text-slate-500">{evt.sport_name}</p>}
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-4">
+                          <p className="text-sm text-slate-300">{evt.event_date}</p>
+                          <p className="text-[10px] font-semibold text-amber-400">
+                            {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `in ${daysUntil} days`}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-4xl mb-3">📭</p>
+                  <p className="text-slate-400 text-sm">No upcoming events</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-800/60 flex justify-end">
+              <Link to="/coach/events" className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-all" onClick={() => setUpcomingModalOpen(false)}>View All Events →</Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

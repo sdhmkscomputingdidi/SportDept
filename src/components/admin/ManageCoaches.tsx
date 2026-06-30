@@ -6,6 +6,7 @@ interface CoachProfile {
   full_name: string;
   role: string;
   created_at: string;
+  email?: string;
 }
 
 interface Sport {
@@ -76,7 +77,32 @@ const ManageCoaches: React.FC = () => {
       const { data: profilesData, error: profilesError } = await query;
 
       if (profilesError) throw profilesError;
-      setCoaches(profilesData || []);
+
+      // 1b. Fetch emails from auth.users via admin API
+      const coachList = (profilesData || []) as CoachProfile[];
+      if (coachList.length > 0) {
+        try {
+          const res = await fetch('/api/admin-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'get-users',
+              userIds: coachList.map(c => c.id),
+            }),
+          });
+          if (res.ok) {
+            const { emails } = await res.json();
+            if (emails) {
+              coachList.forEach(c => {
+                c.email = emails[c.id] || '';
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch coach emails:', e);
+        }
+      }
+      setCoaches(coachList);
 
       // 2. Fetch sports options list
       const { data: sportsData, error: sportsError } = await supabase
@@ -443,6 +469,7 @@ const ManageCoaches: React.FC = () => {
                           )}
                         </div>
                         <p className="text-[10px] text-slate-500 tracking-wider font-mono">ID: {coach.id.slice(0, 8)}...</p>
+                        {coach.email && <p className="text-[10px] text-slate-500 font-mono">✉️ {coach.email}</p>}
                       </div>
                     </div>
 

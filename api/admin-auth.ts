@@ -76,6 +76,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             id: data.user.id,
             full_name: fullName || email.split('@')[0],
             role: role || 'coach',
+            email: email,
           });
         }
 
@@ -98,6 +99,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         if (Object.keys(updateData).length > 0) {
           const { error } = await adminClient.auth.admin.updateUserById(userId, updateData);
           if (error) throw error;
+          // Also update email in profiles table
+          if (email) {
+            await adminClient.from('profiles').update({ email }).eq('id', userId);
+          }
         }
 
         res.statusCode = 200;
@@ -117,6 +122,28 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
         res.statusCode = 200;
         res.end(JSON.stringify({ success: true }));
+        return;
+      }
+
+      case 'get-users': {
+        const { userIds } = payload;
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: 'userIds array is required' }));
+          return;
+        }
+        // Fetch all users (up to 1000, more than enough for a sports dept)
+        const { data } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+        const userEmails: Record<string, string> = {};
+        if (data?.users) {
+          data.users.forEach((u: any) => {
+            if (userIds.includes(u.id) && u.email) {
+              userEmails[u.id] = u.email;
+            }
+          });
+        }
+        res.statusCode = 200;
+        res.end(JSON.stringify({ emails: userEmails }));
         return;
       }
 

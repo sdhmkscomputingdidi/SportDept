@@ -7,6 +7,7 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState<string>('Head Coach');
+  const [userEmail, setUserEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [sports, setSports] = useState<{ id: string; name: string }[]>([]);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export const AdminLayout: React.FC = () => {
           }
           setUserName(data.full_name);
         }
+        setUserEmail(user.email || '');
       } else {
         navigate('/login');
       }
@@ -352,6 +354,7 @@ export const AdminLayout: React.FC = () => {
             <div className="overflow-hidden">
               <p className="text-sm font-semibold text-white truncate">{userName}</p>
               <p className="text-[10px] text-violet-400 font-medium">Head Coach</p>
+              {userEmail && <p className="text-[9px] text-slate-500 truncate">{userEmail}</p>}
             </div>
           </div>
           <button
@@ -503,6 +506,7 @@ export const AdminLayout: React.FC = () => {
                   <div className="overflow-hidden">
                     <p className="text-sm font-semibold text-white truncate">{userName}</p>
                     <p className="text-[10px] text-violet-400 font-medium">Head Coach</p>
+                    {userEmail && <p className="text-[9px] text-slate-500 truncate">{userEmail}</p>}
                   </div>
                 </div>
                 <button

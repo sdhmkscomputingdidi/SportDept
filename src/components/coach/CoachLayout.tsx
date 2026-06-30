@@ -7,6 +7,7 @@ export const CoachLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState<string>('Coach');
+  const [userEmail, setUserEmail] = useState<string>('');
   const [assignedSports, setAssignedSports] = useState<any[]>([]);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [assessmentSubOpen, setAssessmentSubOpen] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export const CoachLayout: React.FC = () => {
 
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
       if (profile) setUserName(profile.full_name);
+      setUserEmail(user.email || '');
 
       const { data: sportsData } = await supabase
         .from('coaches_sports')
@@ -236,7 +238,10 @@ export const CoachLayout: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <p className="text-sm font-semibold">{userName}</p>
+              <div className="overflow-hidden">
+                <p className="text-sm font-semibold truncate">{userName}</p>
+                {userEmail && <p className="text-[10px] text-slate-500 truncate">{userEmail}</p>}
+              </div>
               <button
                 onClick={() => { setPasswordModalOpen(true); closeSidebar(); }}
                 className="text-xs text-violet-400 hover:text-violet-300 mt-1.5 block transition-colors"
@@ -352,7 +357,10 @@ export const CoachLayout: React.FC = () => {
               </button>
             ))}
           </div>
-          <p className="text-sm font-semibold">{userName}</p>
+          <div className="overflow-hidden">
+            <p className="text-sm font-semibold truncate">{userName}</p>
+            {userEmail && <p className="text-[10px] text-slate-500 truncate">{userEmail}</p>}
+          </div>
           <button
             onClick={() => setPasswordModalOpen(true)}
             className="text-xs text-violet-400 hover:text-violet-300 transition-colors"

@@ -47,10 +47,11 @@ interface StatCardProps {
   color?: StatCardColor;
   link?: string;
   total?: number;
+  onClick?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
-  label, value, icon, color = 'violet', link, total,
+  label, value, icon, color = 'violet', link, total, onClick,
 }) => {
   const cfg = COLOR_CONFIG[color];
   const classes = `rounded-xl bg-gradient-to-br ${cfg.gradient} border ${cfg.border} p-5 transition-all hover:scale-[1.02] hover:shadow-lg group`;
@@ -76,6 +77,9 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   if (link) {
     return <Link to={link} className={classes}>{inner}</Link>;
+  }
+  if (onClick) {
+    return <button type="button" onClick={onClick} className={`${classes} w-full text-left cursor-pointer`}>{inner}</button>;
   }
   return <div className={classes}>{inner}</div>;
 };

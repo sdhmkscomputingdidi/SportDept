@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -38,6 +38,8 @@ interface EventParticipant {
 
 export const ManageEvents: React.FC = () => {
   const { sportId: urlSportId } = useParams<{ sportId?: string }>();
+  const [searchParams] = useSearchParams();
+  const eventIdParam = searchParams.get('eventId');
   const [mobileView, setMobileView] = useState<'events' | 'participants'>('events');
   const [sports, setSports] = useState<Sport[]>([]);
   const [selectedSportId, setSelectedSportId] = useState<string>('');
@@ -62,15 +64,16 @@ export const ManageEvents: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [eventSearchQuery, setEventSearchQuery] = useState('');
-  const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('asc');
   const [eventDateFrom, setEventDateFrom] = useState('');
   const [eventDateTo, setEventDateTo] = useState('');
   const [eventShowUpcoming, setEventShowUpcoming] = useState(false);
+  const [participantFilter, setParticipantFilter] = useState<'all' | 'empty' | 'partial' | 'full'>('all');
   const [eventPage, setEventPage] = useState(1);
   const EVENTS_PER_PAGE = 15;
 
   // Player stats data
   const [playerStatsMap, setPlayerStatsMap] = useState<Record<string, { attendance_pct: number; event_count: number }>>({});
+  const [participantCountMap, setParticipantCountMap] = useState<Record<string, number>>({});
 
   // Stats modal state
   const [statsModalPlayerId, setStatsModalPlayerId] = useState<string | null>(null);
@@ -104,7 +107,7 @@ export const ManageEvents: React.FC = () => {
   };
 
   const fetchEvents = async () => {
-    if (!selectedSportId) return;
+    if (!selectedSportId) return [];
     setError(null);
     try {
       const { data, error: fetchErr } = await supabase
@@ -117,8 +120,10 @@ export const ManageEvents: React.FC = () => {
       setEvents(data || []);
       setSelectedEvent(null);
       setParticipants([]);
+      return data || [];
     } catch (err: any) {
       setError(err.message || 'Failed to fetch events.');
+      return [];
     }
   };
 
@@ -349,11 +354,34 @@ export const ManageEvents: React.FC = () => {
 
     async function loadData() {
       if (cancelled) return;
-      await fetchEvents();
+      const eventData = await fetchEvents();
       if (cancelled) return;
+
+      // Auto-select event from URL search param (from dashboard modal click)
+      if (eventIdParam && eventData) {
+        const match = (eventData as any[]).find((e: any) => e.id === eventIdParam);
+        if (match) {
+          setSelectedEvent(match);
+          setMobileView('participants');
+        }
+      }
+
+      const eventIds = (eventData || []).map((e: any) => e.id);
       await fetchPlayers();
       if (cancelled) return;
       await fetchPlayerStats();
+      if (cancelled) return;
+      if (eventIds.length > 0) {
+        const { data: countData } = await supabase
+          .from('players_events')
+          .select('event_id')
+          .in('event_id', eventIds);
+        const map: Record<string, number> = {};
+        (countData || []).forEach((r: any) => {
+          map[r.event_id] = (map[r.event_id] || 0) + 1;
+        });
+        setParticipantCountMap(map);
+      }
     }
 
     if (selectedSportId) {
@@ -582,13 +610,6 @@ export const ManageEvents: React.FC = () => {
             >
               🚀 Upcoming
             </button>
-            <button
-              onClick={() => { setEventSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); setEventPage(1); }}
-              className="flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded px-2 py-1.5 text-slate-300 transition-colors whitespace-nowrap"
-              title={eventSortOrder === 'asc' ? 'Sorted: Oldest first' : 'Sorted: Newest first'}
-            >
-              {eventSortOrder === 'asc' ? '📅 Oldest' : '📅 Recent'}
-            </button>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -615,84 +636,180 @@ export const ManageEvents: React.FC = () => {
               </button>
             )}
           </div>
+          {/* Participant status filter */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {(['all', 'empty', 'partial', 'full'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => { setParticipantFilter(f); setEventPage(1); }}
+                className={`text-[9px] px-2 py-1 rounded transition-all ${
+                  participantFilter === f
+                    ? f === 'all' ? 'bg-slate-700 text-white' :
+                      f === 'empty' ? 'bg-red-900/60 text-red-300 border border-red-500/30' :
+                      f === 'partial' ? 'bg-amber-900/60 text-amber-300 border border-amber-500/30' :
+                      'bg-emerald-900/60 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-slate-800/50 text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'empty' ? '🟡 Empty' : f === 'partial' ? '🟠 Partial' : '🟢 Full'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Filtered, Sorted & Paginated Events */}
         <div className="space-y-2 flex-1">
           {(() => {
             const todayStr = new Date().toISOString().split('T')[0];
+
+            // Smart sort: future events (closest first) then past events (most recent first)
             const filtered = events
-              .filter(evt =>
-                (evt.name.toLowerCase().includes(eventSearchQuery.toLowerCase()) ||
-                evt.event_date.includes(eventSearchQuery)) &&
-                (!eventDateFrom || evt.event_date >= eventDateFrom) &&
-                (!eventDateTo || evt.event_date <= eventDateTo) &&
-                (!eventShowUpcoming || evt.event_date >= todayStr)
-              )
+              .filter(evt => {
+                const pCount = participantCountMap[evt.id] ?? 0;
+                const nameMatch = evt.name.toLowerCase().includes(eventSearchQuery.toLowerCase()) ||
+                  evt.event_date.includes(eventSearchQuery);
+                const dateMatch = (!eventDateFrom || evt.event_date >= eventDateFrom) &&
+                  (!eventDateTo || evt.event_date <= eventDateTo);
+                const upcomingMatch = !eventShowUpcoming || evt.event_date >= todayStr;
+                const participMatch = participantFilter === 'all' ||
+                  (participantFilter === 'empty' && pCount === 0) ||
+                  (participantFilter === 'partial' && pCount > 0 && pCount < players.length) ||
+                  (participantFilter === 'full' && players.length > 0 && pCount >= players.length);
+                return nameMatch && dateMatch && upcomingMatch && participMatch;
+              })
               .sort((a, b) => {
-                const cmp = a.event_date.localeCompare(b.event_date);
-                return eventSortOrder === 'asc' ? cmp : -cmp;
+                const aIsPast = a.event_date < todayStr;
+                const bIsPast = b.event_date < todayStr;
+                if (aIsPast !== bIsPast) return aIsPast ? 1 : -1; // future first
+                return aIsPast
+                  ? b.event_date.localeCompare(a.event_date) // past: most recent first
+                  : a.event_date.localeCompare(b.event_date); // future: closest first
               });
 
             const totalShown = eventPage * EVENTS_PER_PAGE;
             const paginated = filtered.slice(0, totalShown);
             const hasMore = paginated.length < filtered.length;
 
+            // Separate upcoming vs past counts
+            const upcomingCount = filtered.filter(e => e.event_date >= todayStr).length;
+            const pastCount = filtered.length - upcomingCount;
+
             if (filtered.length === 0) {
               return (
                 <p className="text-xs text-slate-500 italic">
-                  {eventSearchQuery || eventDateFrom || eventDateTo || eventShowUpcoming ? 'No events match your filters.' : 'No events yet.'}
+                  {eventSearchQuery || eventDateFrom || eventDateTo || eventShowUpcoming || participantFilter !== 'all' ? 'No events match your filters.' : 'No events yet.'}
                 </p>
               );
             }
 
+            let lastWasPast = false;
+
             return (
               <>
-                {paginated.map((evt) => (
-                  <div
-                    key={evt.id}
-                    onClick={() => {
-                      setSelectedEvent(evt);
-                      setEditEvent(null);
-                      setMobileView('participants');
-                    }}
-                    className={`p-3 rounded cursor-pointer transition-colors ${
-                      selectedEvent?.id === evt.id
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{evt.name}</p>
-                        <p className="text-[10px] text-slate-400">{evt.event_date}</p>
+                <div className="flex items-center gap-3 mb-2 text-[10px] text-slate-500">
+                  <span>📅 {filtered.length} events</span>
+                  {upcomingCount > 0 && <span className="text-emerald-400">● {upcomingCount} upcoming</span>}
+                  {pastCount > 0 && <span className="text-slate-600">○ {pastCount} past</span>}
+                </div>
+
+                {paginated.map((evt) => {
+                  const isPast = evt.event_date < todayStr;
+                  const daysDiff = Math.ceil((new Date(evt.event_date + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  const pCount = participantCountMap[evt.id] ?? 0;
+
+                  // Show a divider when switching from upcoming to past
+                  const showDivider = !lastWasPast && isPast;
+                  lastWasPast = isPast;
+
+                  return (
+                    <React.Fragment key={evt.id}>
+                      {showDivider && (
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="flex-1 h-px bg-slate-700/50" />
+                          <span className="text-[10px] text-slate-600 font-semibold uppercase">Past Events</span>
+                          <div className="flex-1 h-px bg-slate-700/50" />
+                        </div>
+                      )}
+                      <div
+                        onClick={() => {
+                          setSelectedEvent(evt);
+                          setEditEvent(null);
+                          setMobileView('participants');
+                        }}
+                        className={`p-3 rounded cursor-pointer transition-all border-l-2 ${
+                          selectedEvent?.id === evt.id
+                            ? 'bg-violet-600 text-white border-l-violet-400'
+                            : isPast
+                              ? 'bg-slate-800/40 text-slate-400 border-l-slate-700/40 opacity-70 hover:opacity-90 hover:bg-slate-800/60'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-l-emerald-500/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm truncate">{evt.name}</p>
+                              {isPast ? (
+                                <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-500 font-semibold uppercase">Past</span>
+                              ) : daysDiff <= 3 ? (
+                                <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold uppercase">Soon</span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[10px] text-slate-400">{evt.event_date}</span>
+                              <span className={`text-[9px] font-medium ${
+                                daysDiff === 0 ? 'text-amber-400' :
+                                daysDiff > 0 && daysDiff <= 3 ? 'text-emerald-400' :
+                                daysDiff > 0 ? 'text-slate-400' :
+                                'text-slate-500'
+                              }`}>
+                                {daysDiff === 0 ? '🎯 Today' :
+                                 daysDiff === 1 ? '🔜 Tomorrow' :
+                                 daysDiff > 0 ? `📅 in ${daysDiff} days` :
+                                 daysDiff === -1 ? '📅 Yesterday' :
+                                 `📅 ${Math.abs(daysDiff)} days ago`}
+                              </span>
+                            </div>
+                            {evt.notes && (
+                              <p className="text-[9px] text-slate-500 mt-0.5 truncate">
+                                {evt.notes.substring(0, 45)}{evt.notes.length > 45 ? '…' : ''}
+                              </p>
+                            )}
+                            <p className={`text-[9px] mt-0.5 font-medium ${
+                              pCount === 0 ? 'text-red-400' :
+                              players.length > 0 && pCount >= players.length ? 'text-emerald-400' :
+                              'text-amber-400'
+                            }`}>
+                              👥 {pCount}/{players.length} participant{pCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 ml-2 flex-shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditEvent(evt);
+                                setEditName(evt.name);
+                                setEditDate(evt.event_date);
+                                setEditNotes(evt.notes || '');
+                              }}
+                              className="text-[10px] text-violet-300 hover:underline"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteEvent(evt.id);
+                              }}
+                              className="text-[10px] text-red-400 hover:underline"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex gap-1 ml-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditEvent(evt);
-                            setEditName(evt.name);
-                            setEditDate(evt.event_date);
-                            setEditNotes(evt.notes || '');
-                          }}
-                          className="text-[10px] text-violet-300 hover:underline"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteEvent(evt.id);
-                          }}
-                          className="text-[10px] text-red-400 hover:underline"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
                 {hasMore && (
                   <button
                     onClick={() => setEventPage(prev => prev + 1)}
@@ -758,9 +875,37 @@ export const ManageEvents: React.FC = () => {
             <div className="space-y-6">
               {/* Participants */}
               <div>
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
                   Participants
                 </h3>
+                {participantsUse.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const rows = [['Player Name', 'Status', 'Attendance %', 'Events Count']];
+                      participantsUse.forEach(p => {
+                        rows.push([
+                          p.players?.[0]?.full_name || 'Unknown',
+                          'Participant',
+                          String(playerStatsMap[p.player_id]?.attendance_pct || 0),
+                          String(playerStatsMap[p.player_id]?.event_count || 0),
+                        ]);
+                      });
+                      const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${selectedEvent?.name || 'event'}_participants.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold transition-colors"
+                  >
+                    📥 Export CSV
+                  </button>
+                )}
+              </div>
                 <div className="space-y-2">
                   {participantsUse.length === 0 ? (
                     <p className="text-sm text-slate-500 italic">{searchQuery ? 'No participants match your search.' : 'No participants selected yet.'}</p>
